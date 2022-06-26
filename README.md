@@ -42,4 +42,14 @@ GOOGLE_SHEEt_URL= #Isikan dengan shareable url dari spreadsheet anda.
 RUTA_SHEET_TITLE= #Isikan dengan nama worksheet untuk data ruta.
 ART_SHEET_TITLE= #Isikan dengan nama worksheet untuk data art.
 ```
-4. Jalankan aplikasi ke perangkat anda.
+4. Ubah nama **package** dengan menjalankan perintah berikut
+```bash
+flutter pub run flutter_launcher_icons:main id.go.bps.pinrangkab.fasih_converter
+```
+>Ganti **pinrangkab** dengan domain satker anda.
+5. Ubah juga nama package pada file **proguard-rules.pro** di folder **android/app/proguard-rules.pro** sesuai nama package di langkah sebelumnya.
+```pro
+-keep class -keep class id.go.bps.pinrangkab.fasih_converter.BuildConfig { *; }
+```
+>Ganti **pinrangkab** dengan domain satker anda.
+6. Jalankan aplikasi ke perangkat Android atau iOS.
