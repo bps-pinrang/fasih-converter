@@ -1,0 +1,50 @@
+name: json_converter
+version: 1.0.1+2
+publish_to: none
+description: A new Flutter project.
+environment: 
+  sdk: '>=2.17.5 <3.0.0'
+
+dependencies: 
+  cupertino_icons: ^1.0.2
+  get: any
+  gsheets: any
+  async_zip: any
+  dotted_border: any
+  file_picker: any
+  permission_handler: any
+  filesize: any
+  flutter_archive: any
+  path_provider: any
+  data_table_2: any
+  flutter_spinkit: any
+  google_fonts: any
+  url: any
+  url_launcher: any
+  flutter_config: any
+  flutter: 
+    sdk: flutter
+
+dev_dependencies: 
+  flutter_lints: any
+  flutter_app_name: any
+  change_app_package_name: any
+  flutter_launcher_icons: any
+  flutter_test: 
+    sdk: flutter
+
+flutter: 
+  assets: 
+    - assets/launchers/
+    - assets/credentials/
+  uses-material-design: true
+
+flutter_app_name: 
+  name: Fasih Converter
+
+flutter_icons: 
+  image_path: assets/launchers/icon.png
+  image_path_android: assets/launchers/icon.png
+  ios: true
+  android: true
+

@@ -1,0 +1,2 @@
+-keep class androidx.lifecycle.DefaultLifecycleObserver
+-keep class id.go.bps.pinrangkab.fasih_converter.BuildConfig { *; }
