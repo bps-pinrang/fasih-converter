@@ -44,12 +44,12 @@ ART_SHEET_TITLE= #Isikan dengan nama worksheet untuk data art.
 ```
 4. Ubah nama **package** dengan menjalankan perintah berikut
 ```bash
-flutter pub run flutter_launcher_icons:main id.go.bps.pinrangkab.fasih_converter
+flutter pub run change_app_package_name:main id.go.bps.pinrangkab.fasih_converter
 ```
 >Ganti **pinrangkab** dengan domain satker anda.
 5. Ubah juga nama package pada file **proguard-rules.pro** di folder **android/app/proguard-rules.pro** sesuai nama package di langkah sebelumnya.
 ```pro
--keep class -keep class id.go.bps.pinrangkab.fasih_converter.BuildConfig { *; }
+-keep class id.go.bps.pinrangkab.fasih_converter.BuildConfig { *; }
 ```
 >Ganti **pinrangkab** dengan domain satker anda.
 6. Jalankan aplikasi ke perangkat Android atau iOS.
