@@ -30,11 +30,13 @@ class HomeView extends GetView<HomeController> {
             SizedBox(
               height: Get.height * 0.1,
             ),
-            const Text(
-              'Fasih Converter v1.0.1',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 18,
+            Obx(
+              () => Text(
+                'Fasih Converter ${controller.appVersion.value}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                ),
               ),
             ),
             const SizedBox(
@@ -64,12 +66,16 @@ class HomeView extends GetView<HomeController> {
                   onTap: controller.readZip,
                   child: Container(
                     width: double.infinity,
+                    height: 100,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 16,
                     ),
                     color: Colors.transparent,
-                    child: Obx(() => _buildCardBody()),
+                    child: AnimatedSwitcher(
+                      duration: 500.milliseconds,
+                      child: Obx(() => _buildCardBody()),
+                    ),
                   ),
                 ),
               ),
@@ -243,30 +249,39 @@ class HomeView extends GetView<HomeController> {
     final fileSize = filesize(file.size);
 
     return Center(
-      child: ListTile(
-        leading: const Icon(
-          Icons.file_present,
-          color: Colors.blueAccent,
-        ),
-        title: Text(
-          file.name,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(
-              height: 8,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SizedBox(
+            width: 80,
+            height: 80,
+            child: Icon(
+              Icons.file_present,
+              color: Colors.blueAccent,
             ),
-            Text('Ukuran : $fileSize'),
-            Text('Format : ${file.extension}'),
-            Text('Jumlah Ruta : ${controller.rutaList.length} ruta'),
-            Text('Jumlah ART  : ${controller.artList.length} art'),
-          ],
-        ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  file.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(
+                  height: 8,
+                ),
+                Text('Ukuran : $fileSize'),
+                Text('Jumlah Ruta : ${controller.rutaList.length} ruta'),
+                Text('Jumlah ART  : ${controller.artList.length} art'),
+              ],
+            ),
+          )
+        ],
       ),
     );
   }
