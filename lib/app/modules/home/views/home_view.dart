@@ -98,7 +98,7 @@ class HomeView extends GetView<HomeController> {
                     () => OutlinedButton(
                       onPressed: ()=> controller.readXLSX(context),
                       style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.green.shade300,
+                        backgroundColor: Colors.blueAccent,
                         primary: Colors.white,
                         side: BorderSide.none,
                       ),
@@ -206,7 +206,7 @@ class HomeView extends GetView<HomeController> {
                 );
               },
               style: OutlinedButton.styleFrom(
-                backgroundColor: Colors.blueAccent,
+                backgroundColor: Colors.green.shade300,
                 primary: Colors.white,
                 side: BorderSide.none,
               ),
