@@ -18,7 +18,6 @@ class FasihConverterSheetApi {
   static Future init() async {
     try {
       _credentials = await rootBundle.loadString('assets/credentials/fasih-converter.json');
-      print('credentials');
       _gSheets = GSheets(_credentials);
       _sheetId =  FlutterConfig.get(kEnvKeyGoogleSheetId);
       final rutaTitle =  FlutterConfig.get(kEnvKeyRutaSheetTitle);
