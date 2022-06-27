@@ -986,7 +986,7 @@ class HomeController extends GetxController
                       )?[kColumnAnswer]
                       .toString() ??
                   '',
-              DDFields().question4: artList
+              DDFields().question4: localART
                   .where((art) => art[ARTFields().r303].contains('3'))
                   .length,
               DDFields().question5: children.isEmpty
