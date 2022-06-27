@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:data_table_2/data_table_2.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:filesize/filesize.dart';
@@ -6,12 +8,17 @@ import 'package:flutter_config/flutter_config.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 import 'package:get/get.dart';
+import 'package:json_converter/app/data/core/utils/helpers.dart';
 import 'package:json_converter/app/data/core/values/strings.dart';
 import 'package:json_converter/app/data/models/art_data_source.dart';
 import 'package:json_converter/app/data/models/art_fields.dart';
 import 'package:json_converter/app/data/models/ruta_data_source.dart';
 import 'package:json_converter/app/data/models/ruta_fields.dart';
+import 'package:line_icons/line_icons.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:syncfusion_flutter_xlsio/xlsio.dart' as Excel;
 import 'package:url_launcher/url_launcher_string.dart';
+import 'package:path/path.dart' show join;
 
 import '../controllers/home_controller.dart';
 
@@ -132,25 +139,110 @@ class HomeView extends GetView<HomeController> {
             const SizedBox(
               height: 8,
             ),
-            OutlinedButton(
-              onPressed: () async {
-                final sheetUrl = await FlutterConfig.get(kEnvKeyGoogleSheetUrl);
-                await launchUrlString(
-                  sheetUrl,
-                  mode: LaunchMode.externalApplication,
-                );
-              },
-              style: OutlinedButton.styleFrom(
-                backgroundColor: Colors.blueAccent,
-                primary: Colors.white,
-                side: BorderSide.none,
-              ),
-              child: controller.isUploadingData.value
-                  ? const SpinKitFadingCircle(
-                      color: Colors.white,
-                      size: 30,
-                    )
-                  : const Text('Lihat Spreadsheet'),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      final sheetUrl =
+                          await FlutterConfig.get(kEnvKeyGoogleSheetUrl);
+                      await launchUrlString(
+                        sheetUrl,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      primary: Colors.white,
+                      side: BorderSide.none,
+                    ),
+                    child: controller.isUploadingData.value
+                        ? const SpinKitFadingCircle(
+                            color: Colors.white,
+                            size: 30,
+                          )
+                        : const Text('Lihat Spreadsheet'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () async {
+
+                      final artList = controller.artList;
+                      final rutaList = controller.rutaList;
+
+                      if(artList.isEmpty || rutaList.isEmpty) {
+                        Get.defaultDialog(
+                          title: 'Gagal!',
+                          content: const Text('Data masih kosong!'),
+                        );
+                        return;
+                      }
+
+                      final Excel.Workbook workBook = Excel.Workbook();
+
+                      final artSheet = workBook.worksheets
+                          .addWithName(FlutterConfig.get(kEnvKeyArtSheetTitle));
+                      final rutaSheet = workBook.worksheets.addWithName(
+                          FlutterConfig.get(kEnvKeyRutaSheetTitle));
+
+                      artSheet.importList(ARTFields().getFields(), 1, 1, false);
+                      for (var i = 1; i <= artList.length; i++) {
+                        artSheet.importList(
+                          artList[i - 1].values.toList(),
+                          i + 1,
+                          1,
+                          false,
+                        );
+                      }
+
+                      rutaSheet.importList(RutaFields().getFields(), 1, 1, false);
+                      for (var i = 1; i <= rutaList.length; i++) {
+                        rutaSheet.importList(
+                          rutaList[i - 1].values.toList(),
+                          i + 1,
+                          1,
+                          false,
+                        );
+                      }
+
+                      var fileBytes = workBook.saveAsStream();
+
+                      var directory = await createFolderInAppDocDir('Export');
+                      var fileName = controller.selectedFile.value?.name
+                          .replaceAll('.zip', '.xlsx');
+                      File(join('$directory/$fileName'))
+                        .writeAsBytes(fileBytes);
+                      workBook.dispose();
+
+                      Get.defaultDialog(
+                        title: 'Berhasil!',
+                        content: const Text('Berhasil menyimpan file!'),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.green.shade300,
+                      primary: Colors.white,
+                      side: BorderSide.none,
+                    ),
+                    child: controller.isUploadingData.value
+                        ? const SpinKitFadingCircle(
+                            color: Colors.white,
+                            size: 30,
+                          )
+                        : Row(
+                            children: [
+                              Icon(
+                                LineIcons.excelFile,
+                                color: Colors.white,
+                              ),
+                              Text('Ekspor Excel'),
+                            ],
+                          ),
+                  ),
+                )
+              ],
             ),
             const SizedBox(
               height: 32,
