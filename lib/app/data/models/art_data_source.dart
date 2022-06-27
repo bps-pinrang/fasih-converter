@@ -10,14 +10,18 @@ class ARTDataSource extends DataTableSource {
 
   @override
   DataRow? getRow(int index) {
-    return DataRow.byIndex(
-      index: index,
-      cells: data[index].values.map((e) => DataCell(Text('$e'))).toList(),
-    );
+    if(index < data.length) {
+      return DataRow.byIndex(
+        index: index,
+        cells: data[index].values.map((e) => DataCell(Text('$e'))).toList(),
+      );
+    }
+
+    return null;
   }
 
   @override
-  bool get isRowCountApproximate => true;
+  bool get isRowCountApproximate => false;
 
   @override
   int get rowCount => data.length;
