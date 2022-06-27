@@ -1,5 +1,5 @@
 name: json_converter
-version: 1.0.4+5
+version: 1.0.5+6
 publish_to: none
 description: A new Flutter project.
 environment: 
@@ -25,6 +25,7 @@ dependencies:
   package_info_plus: any
   line_icons: any
   syncfusion_flutter_xlsio: 20.1.61-beta
+  share_plus: 4.0.10
   flutter: 
     sdk: flutter
 

@@ -8,14 +8,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_archive/flutter_archive.dart';
 import 'package:get/get.dart';
 import 'package:gsheets/gsheets.dart';
+import 'package:json_converter/app/data/core/utils/helpers.dart';
 import 'package:json_converter/app/data/core/values/strings.dart';
 import 'package:json_converter/app/data/models/art_fields.dart';
+import 'package:json_converter/app/data/models/dd_fields.dart';
 import 'package:json_converter/app/data/models/ruta_fields.dart';
 import 'package:json_converter/app/data/providers/fasih_converter_sheet_api.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:permission_handler/permission_handler.dart' as perm;
+import 'package:share_plus/share_plus.dart';
 
 class HomeController extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -26,6 +29,7 @@ class HomeController extends GetxController
   final isUploadingData = false.obs;
   final rutaList = List<Map<String, dynamic>>.empty(growable: true).obs;
   final artList = List<Map<String, dynamic>>.empty(growable: true).obs;
+  final ddList = List<Map<String, dynamic>>.empty(growable: true).obs;
 
   final appVersion = ''.obs;
 
@@ -34,6 +38,36 @@ class HomeController extends GetxController
     super.onInit();
     var packageInfo = await PackageInfo.fromPlatform();
     appVersion.value = 'v${packageInfo.version}';
+  }
+
+  Future readXLSX(BuildContext context) async {
+    try {
+      perm.PermissionStatus status = await perm.Permission.storage.status;
+
+      do {
+        status = await perm.Permission.storage.request();
+      } while (status != perm.PermissionStatus.granted);
+
+      final path = await createFolderInAppDocDir('Export');
+
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        initialDirectory: path,
+        allowMultiple: false,
+        type: FileType.custom,
+        allowedExtensions: ['xlsx'],
+      );
+
+      if (result != null) {
+        final box = context.findRenderObject() as RenderBox?;
+         Share.shareFiles(
+          [result.files.first.path!],
+          text: result.files.first.name,
+          sharePositionOrigin: box!.localToGlobal(Offset.zero) & box.size,
+        );
+      }
+    } catch (e) {
+      //
+    }
   }
 
   Future readZip() async {
@@ -54,6 +88,7 @@ class HomeController extends GetxController
       if (result != null) {
         rutaList.clear();
         artList.clear();
+        ddList.clear();
         selectedFile.value = result.files.first;
         zipReader.open(File(selectedFile.value!.path!));
         final entries = zipReader.entries();
@@ -298,6 +333,9 @@ class HomeController extends GetxController
                       .toString() ??
                   '',
             };
+
+            final List<Map<String, dynamic>> localART =
+                List.empty(growable: true);
 
             for (var i = 1; i <= artCount; i++) {
               final artData = {
@@ -917,8 +955,133 @@ class HomeController extends GetxController
                     '',
               };
               artList.add(artData);
+              localART.add(artData);
             }
 
+            final children = localART
+                .where((element) => element[ARTFields().r303].contains('4'))
+                .toList();
+            final ddData = {
+              DDFields().regionID:
+                  rutaData[RutaFields().village] + rutaData[RutaFields().nobs],
+              DDFields().supervisor: '',
+              DDFields().krt: rutaData[RutaFields().krtName],
+              DDFields().buildingNumb:
+                  rutaData[RutaFields().nobang].toString().padLeft(3, '0'),
+              DDFields().queueNumb: rutaData[RutaFields().nus],
+              DDFields().pcl: '',
+              DDFields().question1: rutaData[RutaFields().krtName],
+              DDFields().question2: json[kColumnAnswers]
+                      .firstWhere(
+                        (el) =>
+                            el[kColumnDataKey] == '${ARTFields().r302Name}#1',
+                        orElse: () => null,
+                      )?[kColumnAnswer]
+                      .toString() ??
+                  '',
+              DDFields().question3: json[kColumnAnswers]
+                      .firstWhere(
+                        (el) => el[kColumnDataKey] == '${ARTFields().r306}#1',
+                        orElse: () => null,
+                      )?[kColumnAnswer]
+                      .toString() ??
+                  '',
+              DDFields().question4: artList
+                  .where((art) => art[ARTFields().r303].contains('3'))
+                  .length,
+              DDFields().question5: children.isEmpty
+                  ? 0
+                  : children.reduce((a, b) => int.parse(a[ARTFields().r306]) >
+                          int.parse(b[ARTFields().r306])
+                      ? a
+                      : b)[ARTFields().r306],
+              DDFields().question6: artCount,
+              DDFields().question7: localART
+                  .where((art) => art[ARTFields().r304].contains('1'))
+                  .length,
+              DDFields().question8: localART
+                  .where((art) => art[ARTFields().r304].contains('2'))
+                  .length,
+              DDFields().question9: localART
+                  .where((art) =>
+                      int.parse(art[ARTFields().r306].isEmpty
+                          ? '0'
+                          : art[ARTFields().r306]) >=
+                      2)
+                  .length,
+              DDFields().question10: localART
+                  .where((art) =>
+                      int.parse(art[ARTFields().r306].isEmpty
+                          ? '0'
+                          : art[ARTFields().r306]) >=
+                      5)
+                  .length,
+              DDFields().question11: localART
+                  .where((art) =>
+                      art[ARTFields().r304].contains('2') &&
+                      (int.parse(art[ARTFields().r306].isEmpty
+                                  ? '0'
+                                  : art[ARTFields().r306]) >=
+                              10 &&
+                          int.parse(art[ARTFields().r306].isEmpty
+                                  ? '0'
+                                  : art[ARTFields().r306]) <=
+                              54))
+                  .length,
+              DDFields().question12: rutaData[RutaFields().r501],
+              DDFields().question13: rutaData[RutaFields().r602],
+              DDFields().question14: localART.fold(0, (num sum, art) {
+                var r438 = 0;
+
+                if (art[ARTFields().r438] != null) {
+                  r438 = art[ARTFields().r438].isEmpty
+                      ? 0
+                      : int.parse(art[ARTFields().r438]);
+                }
+
+                return sum + r438;
+              }),
+              DDFields().question15: localART.fold(0, (num sum, art) {
+                var a443 = 0;
+
+                if (art[ARTFields().r443a] != null) {
+                  a443 = art[ARTFields().r443a].isEmpty
+                      ? 0
+                      : int.parse(art[ARTFields().r443a]);
+                }
+
+                var b443 = 0;
+
+                if (art[ARTFields().r443b] != null) {
+                  b443 = art[ARTFields().r443b].isEmpty
+                      ? 0
+                      : int.parse(art[ARTFields().r443b]);
+                }
+
+                return sum + (a443 + b443);
+              }),
+              DDFields().question16: localART.fold(0, (num sum, art) {
+                var a445 = 0;
+
+                if (art[ARTFields().r445a] != null) {
+                  a445 = art[ARTFields().r445a].isEmpty
+                      ? 0
+                      : int.parse(art[ARTFields().r445a]);
+                }
+
+                var b445 = 0;
+
+                if (art[ARTFields().r445b] != null) {
+                  b445 = art[ARTFields().r445b].isEmpty
+                      ? 0
+                      : int.parse(art[ARTFields().r445b]);
+                }
+
+                return sum + (a445 + b445);
+              }),
+            };
+
+            ddList.add(ddData);
             rutaList.add(rutaData);
           }
         }
@@ -951,6 +1114,7 @@ class HomeController extends GetxController
           selectedFile.value = null;
           rutaList.clear();
           artList.clear();
+          ddList.clear();
         },
       );
     } on GSheetsException catch (e) {
