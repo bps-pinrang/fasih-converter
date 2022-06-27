@@ -21,15 +21,16 @@
 ![image.png](./screenshoots/create_credential.png)
 7. Masukkan informasi terkait **service** pada formulir lalu tekan ***CREATE & CONTINUE***. Tekan ***CONTINUE*** sekali lagi di tahap selanjutnya. Lalu tekan ***DONE*** untuk menuntaskan proses pembuatan ***Service Account***.
 ![image.png](./screenshoots/create_credential_1.png)![image.png](./screenshoots/create_credential_2.png)
-9. Buat dan *Download* ***Credential Keys* dengan cara masuk ke Tab ***Keys*** lalu pilih ***ADD KEY***. Pilih ***JSON***. Browser anda akan secara otomatis mengunduh credential key berupa file JSON. Copy file ini ke folder ***assets/credentials*** lalu rename menjadi ***fasih-converter.json***
-8. Lihat detail dari ***credentials*** yang baru saja dibuat, lalu salin ***Email*** seperti pada gambar dibawah. Masukkan alamat email ihi ke daftar sharing sheet yang akan digunakan.
-![image.png](./screenshoots/service_email.png)
+8. Buat dan *Download* ***Credential Keys* dengan cara masuk ke Tab ***Keys*** lalu pilih ***ADD KEY***. Pilih ***JSON***. Browser anda akan secara otomatis mengunduh credential key berupa file JSON. Copy file ini ke folder ***assets/credentials*** lalu rename menjadi ***fasih-converter.json***
+![image.png](./screenshoots/create_keys.png)![image.png](./screenshoots/create_keys_2.png)![image.png](./screenshoots/create_keys_3.png)
+9. Lihat detail dari ***credentials*** yang baru saja dibuat, lalu salin ***Email*** seperti pada gambar dibawah. Masukkan alamat email ihi ke daftar sharing sheet yang akan digunakan.
+![image.png](./screenshoots/service_email.png)![image.png](./screenshoots/share_sheet.png)![image.png](./screenshoots/share_sheet_2.png)
 
 ## Langkah Instalasi
 1. *Clone repository* ini ke local disk anda dengan menjalankan perintah berikut
 ```bash
 # Git BPS
-git clone https://git.bps.go.id/ryanaidilp/fasih-converter
+git clone https://git.bps.go.id/ryanaidilp/fasih-converter.git
 ```
 2. Masuk ke *root directory project* lalu jalankan perintah berikut
 ```bash
@@ -53,3 +54,6 @@ flutter pub run change_app_package_name:main id.go.bps.pinrangkab.fasih_converte
 ```
 >Ganti **pinrangkab** dengan domain satker anda.
 6. Jalankan aplikasi ke perangkat Android atau iOS.
+
+## Screenshoot Aplikasi
+![image.png](./screenshoots/ss_app_2.PNG)![image.png](./screenshoots/ss_app_1.PNG)![image.png](./screenshoots/ss_app_3.PNG)
