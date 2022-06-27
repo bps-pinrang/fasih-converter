@@ -379,7 +379,13 @@ class HomeController extends GetxController
                         )?[kColumnAnswer]
                         .toString() ??
                     '',
-                ARTFields().r301:
+                ARTFields().r301: json[kColumnAnswers]
+                        .firstWhere(
+                          (el) =>
+                              el[kColumnDataKey] == '${ARTFields().r301}#$i',
+                          orElse: () => null,
+                        )?[kColumnAnswer]
+                        .toString() ??
                     '',
                 ARTFields().r302Name: json[kColumnAnswers]
                         .firstWhere(
