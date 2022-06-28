@@ -153,6 +153,7 @@ class ARTFields {
         r439a,
         r439b,
         r440a,
+        r440b,
         r441a,
         r441b,
         r442,
