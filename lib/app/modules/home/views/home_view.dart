@@ -16,9 +16,7 @@ import 'package:json_converter/app/data/models/dd_fields.dart';
 import 'package:json_converter/app/data/models/ruta_data_source.dart';
 import 'package:json_converter/app/data/models/ruta_fields.dart';
 import 'package:line_icons/line_icons.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart' as Excel;
-import 'package:url_launcher/url_launcher_string.dart';
 import 'package:path/path.dart' show join;
 
 import '../controllers/home_controller.dart';
@@ -96,7 +94,7 @@ class HomeView extends GetView<HomeController> {
                 Expanded(
                   child: Obx(
                     () => OutlinedButton(
-                      onPressed: ()=> controller.readXLSX(context),
+                      onPressed: () => controller.readXLSX(context),
                       style: OutlinedButton.styleFrom(
                         backgroundColor: Colors.blueAccent,
                         primary: Colors.white,
@@ -139,11 +137,35 @@ class HomeView extends GetView<HomeController> {
               height: 8,
             ),
             OutlinedButton.icon(
-              label: Text('Ekspor ke Excel'),
+              label: const Text('Ekspor ke Excel'),
               onPressed: () async {
                 final artList = controller.artList;
                 final rutaList = controller.rutaList;
                 final ddList = controller.ddList;
+                final questions = [
+                  'Nama KRT pada DSRT',
+                  'Nama KRT pada C2 (R302 No urut 1)',
+                  'Umur KRT (r306 No urut 1)',
+                  'Jumlah ART sebagai Istri (Jumlah ART r303 = 3)',
+                  'Umur anak tertua (R306 terbesar pada ART r303 = 4)',
+                  'Jumlah ART (r112)',
+                  'Jumlah ART Laki-Laki (Jumlah ART r304 = 1)',
+                  'Jumlah ART Perempuan (Jumlah ART r304 = 2)',
+                  'Jumlah ART >= 2 Tahun (Jumlah ART r306 >= 2)',
+                  'Jumlah ART >= 5 Tahun (Jumlah ART r306 >= 5)',
+                  'Jumlah Perempuan Usia 10 -54 (Jumlah ART r304 = 2 dan r306 = 10 - 54)',
+                  'Jumlah Migrasi Internasional Sejak Juni 2017 (r501)',
+                  'Jumlah Kematian 5 Tahun Terakhir (r602)',
+                  'Jumlah Anak Lahir Hidup (Total r438 seluruh ART)',
+                  'Jumlah Anak Lahir Hidup 5 Tahun Terakhir (Total r443a + r443b seluruh ART)',
+                  'Jumlah Anak Lahir Hidup Setahun Terakhir (Total r445a + r445b seluruh ART)',
+                  'Apakah terdapat ART 17 tahun kebawah dan berstatus kawin?',
+                  'Apakah terdapat ART dengan status hubungan dengan KRT (r303) sebagai suami (02), istri (03), menantu (05), orang tua (07), atau mertua (08) dan umur < 10 tahun?',
+                  'Apakah terdapat ART yang berusia 5 tahun kebawah (balita) yang memiliki gangguan pada Blok IV.412 - 420?',
+                  'Apakah ada ART yang berbahasa daerah dengan tetangga (r424b = 1) namun tidak berbahasa daerah dalam keluarga (r424a = 2)?',
+                  'Apakah ada ART yang bekerja sebagai supir angkutan antar daerah atau nelayan yang tempat bekerjanya berbeda kab/kota dengan tempat tinggal (r426 = 1) dan pulang rutin setiap hari (r427 = 1)?',
+                  'Apakah jumlah anak yang dilahirkan hidup sejak Januari 2017 (r443a+r443b) lebih besar dari jumlah kehamilan (blok VII) pada masing-masing ART?',
+                ];
 
                 if (artList.isEmpty || rutaList.isEmpty) {
                   Get.defaultDialog(
@@ -155,18 +177,27 @@ class HomeView extends GetView<HomeController> {
 
                 final Excel.Workbook workBook = Excel.Workbook();
 
+                final questionSheet = workBook.worksheets.innerList.first;
                 final artSheet = workBook.worksheets
                     .addWithName(FlutterConfig.get(kEnvKeyArtSheetTitle));
                 final rutaSheet = workBook.worksheets
                     .addWithName(FlutterConfig.get(kEnvKeyRutaSheetTitle));
-                final pencacahanSheet =
-                    workBook.worksheets.addWithName('Pencacahan');
+                final ddlfSheet = workBook.worksheets.addWithName('Pencacahan');
 
-                pencacahanSheet.importList(DDFields().getFields(), 1, 1, false);
+                questionSheet.importList(['No', 'Pertanyaan'], 1, 1, false);
+                questionSheet.importList(
+                    List.generate(questions.length, (index) => index + 1),
+                    2,
+                    1,
+                    true);
+                questionSheet.importList(questions, 2, 2, true);
+
+                ddlfSheet.importList(DDFields().getFields(), 1, 1, false);
                 for (var i = 1; i <= ddList.length; i++) {
-                  pencacahanSheet.importList(
+                  final excelIndex = i + 1;
+                  ddlfSheet.importList(
                     ddList[i - 1].values.toList(),
-                    i + 1,
+                    excelIndex,
                     1,
                     false,
                   );
@@ -210,7 +241,7 @@ class HomeView extends GetView<HomeController> {
                 primary: Colors.white,
                 side: BorderSide.none,
               ),
-              icon: Icon(
+              icon: const Icon(
                 LineIcons.excelFile,
                 color: Colors.white,
               ),

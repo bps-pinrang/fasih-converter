@@ -59,7 +59,7 @@ class HomeController extends GetxController
 
       if (result != null) {
         final box = context.findRenderObject() as RenderBox?;
-         Share.shareFiles(
+        Share.shareFiles(
           [result.files.first.path!],
           text: result.files.first.name,
           sharePositionOrigin: box!.localToGlobal(Offset.zero) & box.size,
@@ -101,6 +101,7 @@ class HomeController extends GetxController
           destinationDir: destinationDir,
         );
 
+        var excelIndex = 2;
         for (final entry in entries) {
           if (entry.name.contains('data.json')) {
             var dir = destinationDir.path + entry.name;
@@ -254,7 +255,7 @@ class HomeController extends GetxController
                         orElse: () => null,
                       )?[kColumnAnswer]
                       .toString() ??
-                  '',
+                  '0',
               RutaFields().r701: json[kColumnAnswers]
                       .firstWhere(
                         (el) => el[kColumnDataKey] == RutaFields().r701,
@@ -490,20 +491,20 @@ class HomeController extends GetxController
                         )?[kColumnAnswer]?[0]?[kColumnValue]
                         .toString() ??
                     '',
-                ARTFields().r308a: json[kColumnAnswers]
-                        .firstWhere(
-                          (el) =>
-                              el[kColumnDataKey] == '${ARTFields().r308a}#$i',
-                          orElse: () => null,
-                        )?[kColumnAnswer]?[0]?[kColumnValue]
-                        .toString() ??
-                    '',
                 ARTFields().r308: json[kColumnAnswers]
                         .firstWhere(
                           (el) =>
                               el[kColumnDataKey] == '${ARTFields().r308}#$i',
                           orElse: () => null,
                         )?[kColumnAnswer]?[0]?[kColumnLabel]
+                        .toString() ??
+                    '',
+                ARTFields().r308a: json[kColumnAnswers]
+                        .firstWhere(
+                          (el) =>
+                              el[kColumnDataKey] == '${ARTFields().r308a}#$i',
+                          orElse: () => null,
+                        )?[kColumnAnswer]?[0]?[kColumnValue]
                         .toString() ??
                     '',
                 ARTFields().r400: json[kColumnAnswers]
@@ -945,6 +946,14 @@ class HomeController extends GetxController
                         )?[kColumnAnswer]?[0]?[kColumnValue]
                         .toString() ??
                     '',
+                ARTFields().r445a: json[kColumnAnswers]
+                        .firstWhere(
+                          (el) =>
+                              el[kColumnDataKey] == '${ARTFields().r445a}#$i',
+                          orElse: () => null,
+                        )?[kColumnAnswer]
+                        .toString() ??
+                    '',
                 ARTFields().r445b: json[kColumnAnswers]
                         .firstWhere(
                           (el) =>
@@ -969,7 +978,7 @@ class HomeController extends GetxController
               DDFields().buildingNumb:
                   rutaData[RutaFields().nobang].toString().padLeft(3, '0'),
               DDFields().queueNumb: rutaData[RutaFields().nus],
-              DDFields().pcl: '',
+              DDFields().pcl: '0',
               DDFields().question1: rutaData[RutaFields().krtName],
               DDFields().question2: json[kColumnAnswers]
                       .firstWhere(
@@ -1079,10 +1088,81 @@ class HomeController extends GetxController
 
                 return sum + (a445 + b445);
               }),
+              DDFields().question17: localART.where((element) {
+                var age = 0;
+                if (element[ARTFields().r306] != '') {
+                  age = int.parse(element[ARTFields().r306]);
+                }
+                return element[ARTFields().r307].contains('2') && age <= 17;
+              }).isNotEmpty
+                  ? '1'
+                  : '0',
+              DDFields().question18: localART.where((element) {
+                var status = '00';
+                var age = 0;
+
+                if (element[ARTFields().r306] != '') {
+                  age = int.parse(element[ARTFields().r306]);
+                }
+
+                if (element[ARTFields().r303] != '') {
+                  status = element[ARTFields().r303].toString().padLeft(2, '0');
+                }
+
+                return ['02', '03', '05', '07', '08'].contains(status) &&
+                    age < 10;
+              }).isNotEmpty
+                  ? '1'
+                  : '0',
+              DDFields().question19: localART.where((element) {
+                var age = 0;
+
+                if (element[ARTFields().r306] != '') {
+                  age = int.parse(element[ARTFields().r306]);
+                }
+
+                var disease = 0;
+                for (var i = 412; i <= 420; i++) {
+                  if (!element['r$i'].contains('4')) {
+                    disease++;
+                  }
+                }
+
+                return disease > 0 && age <= 5;
+              }).isNotEmpty
+                  ? '1'
+                  : '0',
+              DDFields().question20: localART
+                      .where((element) =>
+                          element[ARTFields().r424b].contains('1') &&
+                          element[ARTFields().r424a].contains('2'))
+                      .isNotEmpty
+                  ? '1'
+                  : '0',
+              DDFields().question21: '0',
+              DDFields().question22: '0',
+              DDFields().rule1: '0',
+              DDFields().rule2: '0',
+              DDFields().rule3: '0',
+              DDFields().rule4: '0',
+              DDFields().rule5: '0',
+              DDFields().rule6: '0',
+              DDFields().rule7: '0',
+              DDFields().rule8: '0',
+              DDFields().rule9: '0',
+              DDFields().rule10: '0',
+              DDFields().status:
+                  '=IF(AC$excelIndex="";"";IF(COUNTIF(AC$excelIndex:AL$excelIndex;1)=10;"CLEAN";IF(COUNTIF(AC$excelIndex:AL$excelIndex;2)>0;"WARNING CLEAN";IF(COUNTIF(AC$excelIndex:AL$excelIndex;3)>0;"WARNING";"BELUM"))))',
+              DDFields().notes: '',
+              DDFields().unique: rutaData[RutaFields().village] +
+                  rutaData[RutaFields().nobs] +
+                  rutaData[RutaFields().nus],
+              DDFields().kab: rutaData[RutaFields().regency],
             };
 
             ddList.add(ddData);
             rutaList.add(rutaData);
+            excelIndex++;
           }
         }
         destinationDir.delete(recursive: true);
