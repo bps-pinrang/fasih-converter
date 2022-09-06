@@ -1,6 +1,10 @@
 # FASIH CONVERTER
 
-*Fasih Converter* adalah aplikasi berbasis Android & iOS yang dibangun menggunakan *framework* [Flutter](https://flutter.dev). Aplikasi ini menggunakan [Google Sheets](https://docs.google.com) sebagai *backend*.
+*Fasih Converter* adalah aplikasi berbasis Android & iOS yang dibangun menggunakan *framework* [Flutter](https://flutter.dev).
+Aplikasi ini menggunakan [Google Sheets](https://docs.google.com) sebagai *backend*.
+
+***Fasih (Flexible and Authentic Survey Instrument Harmoni)*** merupakan aplikasi Android yang dikembangkan oleh Direktorat SIS BPS RI untuk membantu kegiatan pengumpulan data BPS baik kegiatan survei maupun kegiatan sensus.
+Aplikasi ini memanfaatkan *framework* [Form Gear](https://github.com/AdityaSetyadi/form-gear) sebagai *form builder*. 
 
 ## Requirements
 1. **Pastikan Flutter SDK terbaru terinstal di perangkat anda.**
