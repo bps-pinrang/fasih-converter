@@ -26,6 +26,7 @@ dependencies:
   line_icons: any
   syncfusion_flutter_xlsio: 20.1.61-beta
   share_plus: 4.0.10
+  percent_indicator: 4.2.2
   flutter: 
     sdk: flutter
 

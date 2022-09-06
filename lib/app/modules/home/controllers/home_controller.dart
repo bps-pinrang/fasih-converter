@@ -30,6 +30,7 @@ class HomeController extends GetxController
   final rutaList = List<Map<String, dynamic>>.empty(growable: true).obs;
   final artList = List<Map<String, dynamic>>.empty(growable: true).obs;
   final ddList = List<Map<String, dynamic>>.empty(growable: true).obs;
+  final isExporting = false.obs;
 
   final appVersion = ''.obs;
 

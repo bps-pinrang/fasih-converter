@@ -97,7 +97,7 @@ class HomeView extends GetView<HomeController> {
                       onPressed: () => controller.readXLSX(context),
                       style: OutlinedButton.styleFrom(
                         backgroundColor: Colors.blueAccent,
-                        primary: Colors.white,
+                        foregroundColor: Colors.white,
                         side: BorderSide.none,
                       ),
                       child: controller.isUploadingData.value
@@ -125,7 +125,7 @@ class HomeView extends GetView<HomeController> {
                         : null,
                     style: OutlinedButton.styleFrom(
                       backgroundColor: Colors.red.shade300,
-                      primary: Colors.white,
+                      foregroundColor: Colors.white,
                       side: BorderSide.none,
                     ),
                     child: const Text('Hapus'),
@@ -136,114 +136,133 @@ class HomeView extends GetView<HomeController> {
             const SizedBox(
               height: 8,
             ),
-            OutlinedButton.icon(
-              label: const Text('Ekspor ke Excel'),
-              onPressed: () async {
-                final artList = controller.artList;
-                final rutaList = controller.rutaList;
-                final ddList = controller.ddList;
-                final questions = [
-                  'Nama KRT pada DSRT',
-                  'Nama KRT pada C2 (R302 No urut 1)',
-                  'Umur KRT (r306 No urut 1)',
-                  'Jumlah ART sebagai Istri (Jumlah ART r303 = 3)',
-                  'Umur anak tertua (R306 terbesar pada ART r303 = 4)',
-                  'Jumlah ART (r112)',
-                  'Jumlah ART Laki-Laki (Jumlah ART r304 = 1)',
-                  'Jumlah ART Perempuan (Jumlah ART r304 = 2)',
-                  'Jumlah ART >= 2 Tahun (Jumlah ART r306 >= 2)',
-                  'Jumlah ART >= 5 Tahun (Jumlah ART r306 >= 5)',
-                  'Jumlah Perempuan Usia 10 -54 (Jumlah ART r304 = 2 dan r306 = 10 - 54)',
-                  'Jumlah Migrasi Internasional Sejak Juni 2017 (r501)',
-                  'Jumlah Kematian 5 Tahun Terakhir (r602)',
-                  'Jumlah Anak Lahir Hidup (Total r438 seluruh ART)',
-                  'Jumlah Anak Lahir Hidup 5 Tahun Terakhir (Total r443a + r443b seluruh ART)',
-                  'Jumlah Anak Lahir Hidup Setahun Terakhir (Total r445a + r445b seluruh ART)',
-                  'Apakah terdapat ART 17 tahun kebawah dan berstatus kawin?',
-                  'Apakah terdapat ART dengan status hubungan dengan KRT (r303) sebagai suami (02), istri (03), menantu (05), orang tua (07), atau mertua (08) dan umur < 10 tahun?',
-                  'Apakah terdapat ART yang berusia 5 tahun kebawah (balita) yang memiliki gangguan pada Blok IV.412 - 420?',
-                  'Apakah ada ART yang berbahasa daerah dengan tetangga (r424b = 1) namun tidak berbahasa daerah dalam keluarga (r424a = 2)?',
-                  'Apakah ada ART yang bekerja sebagai supir angkutan antar daerah atau nelayan yang tempat bekerjanya berbeda kab/kota dengan tempat tinggal (r426 = 1) dan pulang rutin setiap hari (r427 = 1)?',
-                  'Apakah jumlah anak yang dilahirkan hidup sejak Januari 2017 (r443a+r443b) lebih besar dari jumlah kehamilan (blok VII) pada masing-masing ART?',
-                ];
+            Obx(
+              () => OutlinedButton.icon(
+                label: controller.isExporting.value ? const Text('Mengekspor!') : const Text('Ekspor ke Excel'),
+                onPressed: controller.isExporting.value
+                    ? () {}
+                    : () async {
+                        controller.isExporting.value = true;
+                        final artList = controller.artList;
+                        final rutaList = controller.rutaList;
+                        final ddList = controller.ddList;
+                        final questions = [
+                          'Nama KRT pada DSRT',
+                          'Nama KRT pada C2 (R302 No urut 1)',
+                          'Umur KRT (r306 No urut 1)',
+                          'Jumlah ART sebagai Istri (Jumlah ART r303 = 3)',
+                          'Umur anak tertua (R306 terbesar pada ART r303 = 4)',
+                          'Jumlah ART (r112)',
+                          'Jumlah ART Laki-Laki (Jumlah ART r304 = 1)',
+                          'Jumlah ART Perempuan (Jumlah ART r304 = 2)',
+                          'Jumlah ART >= 2 Tahun (Jumlah ART r306 >= 2)',
+                          'Jumlah ART >= 5 Tahun (Jumlah ART r306 >= 5)',
+                          'Jumlah Perempuan Usia 10 -54 (Jumlah ART r304 = 2 dan r306 = 10 - 54)',
+                          'Jumlah Migrasi Internasional Sejak Juni 2017 (r501)',
+                          'Jumlah Kematian 5 Tahun Terakhir (r602)',
+                          'Jumlah Anak Lahir Hidup (Total r438 seluruh ART)',
+                          'Jumlah Anak Lahir Hidup 5 Tahun Terakhir (Total r443a + r443b seluruh ART)',
+                          'Jumlah Anak Lahir Hidup Setahun Terakhir (Total r445a + r445b seluruh ART)',
+                          'Apakah terdapat ART 17 tahun kebawah dan berstatus kawin?',
+                          'Apakah terdapat ART dengan status hubungan dengan KRT (r303) sebagai suami (02), istri (03), menantu (05), orang tua (07), atau mertua (08) dan umur < 10 tahun?',
+                          'Apakah terdapat ART yang berusia 5 tahun kebawah (balita) yang memiliki gangguan pada Blok IV.412 - 420?',
+                          'Apakah ada ART yang berbahasa daerah dengan tetangga (r424b = 1) namun tidak berbahasa daerah dalam keluarga (r424a = 2)?',
+                          'Apakah ada ART yang bekerja sebagai supir angkutan antar daerah atau nelayan yang tempat bekerjanya berbeda kab/kota dengan tempat tinggal (r426 = 1) dan pulang rutin setiap hari (r427 = 1)?',
+                          'Apakah jumlah anak yang dilahirkan hidup sejak Januari 2017 (r443a+r443b) lebih besar dari jumlah kehamilan (blok VII) pada masing-masing ART?',
+                        ];
 
-                if (artList.isEmpty || rutaList.isEmpty) {
-                  Get.defaultDialog(
-                    title: 'Gagal!',
-                    content: const Text('Data masih kosong!'),
-                  );
-                  return;
-                }
+                        if (artList.isEmpty || rutaList.isEmpty) {
+                          Get.defaultDialog(
+                            title: 'Gagal!',
+                            content: const Text('Data masih kosong!'),
+                          );
+                          return;
+                        }
 
-                final Excel.Workbook workBook = Excel.Workbook();
+                        final Excel.Workbook workBook = Excel.Workbook();
 
-                final questionSheet = workBook.worksheets.innerList.first;
-                final artSheet = workBook.worksheets
-                    .addWithName(FlutterConfig.get(kEnvKeyArtSheetTitle));
-                final rutaSheet = workBook.worksheets
-                    .addWithName(FlutterConfig.get(kEnvKeyRutaSheetTitle));
-                final ddlfSheet = workBook.worksheets.addWithName('Pencacahan');
+                        final questionSheet =
+                            workBook.worksheets.innerList.first;
+                        final artSheet = workBook.worksheets.addWithName(
+                            FlutterConfig.get(kEnvKeyArtSheetTitle));
+                        final rutaSheet = workBook.worksheets.addWithName(
+                            FlutterConfig.get(kEnvKeyRutaSheetTitle));
+                        final ddlfSheet =
+                            workBook.worksheets.addWithName('Pencacahan');
 
-                questionSheet.importList(['No', 'Pertanyaan'], 1, 1, false);
-                questionSheet.importList(
-                    List.generate(questions.length, (index) => index + 1),
-                    2,
-                    1,
-                    true);
-                questionSheet.importList(questions, 2, 2, true);
+                        questionSheet
+                            .importList(['No', 'Pertanyaan'], 1, 1, false);
+                        questionSheet.importList(
+                            List.generate(
+                                questions.length, (index) => index + 1),
+                            2,
+                            1,
+                            true);
+                        questionSheet.importList(questions, 2, 2, true);
 
-                ddlfSheet.importList(DDFields().getFields(), 1, 1, false);
-                for (var i = 1; i <= ddList.length; i++) {
-                  final excelIndex = i + 1;
-                  ddlfSheet.importList(
-                    ddList[i - 1].values.toList(),
-                    excelIndex,
-                    1,
-                    false,
-                  );
-                }
+                        ddlfSheet.importList(
+                            DDFields().getFields(), 1, 1, false);
+                        for (var i = 1; i <= ddList.length; i++) {
+                          final excelIndex = i + 1;
+                          ddlfSheet.importList(
+                            ddList[i - 1].values.toList(),
+                            excelIndex,
+                            1,
+                            false,
+                          );
+                        }
 
-                artSheet.importList(ARTFields().getFields(), 1, 1, false);
-                for (var i = 1; i <= artList.length; i++) {
-                  artSheet.importList(
-                    artList[i - 1].values.toList(),
-                    i + 1,
-                    1,
-                    false,
-                  );
-                }
+                        artSheet.importList(
+                            ARTFields().getFields(), 1, 1, false);
+                        for (var i = 1; i <= artList.length; i++) {
+                          artSheet.importList(
+                            artList[i - 1].values.toList(),
+                            i + 1,
+                            1,
+                            false,
+                          );
+                        }
 
-                rutaSheet.importList(RutaFields().getFields(), 1, 1, false);
-                for (var i = 1; i <= rutaList.length; i++) {
-                  rutaSheet.importList(
-                    rutaList[i - 1].values.toList(),
-                    i + 1,
-                    1,
-                    false,
-                  );
-                }
+                        rutaSheet.importList(
+                            RutaFields().getFields(), 1, 1, false);
+                        for (var i = 1; i <= rutaList.length; i++) {
+                          rutaSheet.importList(
+                            rutaList[i - 1].values.toList(),
+                            i + 1,
+                            1,
+                            false,
+                          );
+                        }
 
-                var fileBytes = workBook.saveAsStream();
+                        var fileBytes = workBook.saveAsStream();
 
-                var directory = await createFolderInAppDocDir('Export');
-                var fileName = controller.selectedFile.value?.name
-                    .replaceAll('.zip', '.xlsx');
-                File(join('$directory/$fileName')).writeAsBytes(fileBytes);
-                workBook.dispose();
+                        var directory = await createFolderInAppDocDir('Export');
+                        var fileName = controller.selectedFile.value?.name
+                            .replaceAll('.zip', '.xlsx');
+                        File(join('$directory/$fileName'))
+                            .writeAsBytes(fileBytes);
+                        workBook.dispose();
 
-                Get.defaultDialog(
-                  title: 'Berhasil!',
-                  content: const Text('Berhasil menyimpan file!'),
-                );
-              },
-              style: OutlinedButton.styleFrom(
-                backgroundColor: Colors.green.shade300,
-                primary: Colors.white,
-                side: BorderSide.none,
-              ),
-              icon: const Icon(
-                LineIcons.excelFile,
-                color: Colors.white,
+                        controller.isExporting.value = false;
+                        Get.defaultDialog(
+                          title: 'Berhasil!',
+                          content: const Text('Berhasil menyimpan file!'),
+                        );
+                      },
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.green.shade300,
+                  foregroundColor: Colors.white,
+                  side: BorderSide.none,
+                ),
+                icon: controller.isExporting.value
+                    ? const SpinKitFadingCircle(
+                        color: Colors.white,
+                        size: 30,
+                      )
+                    : const Icon(
+                        LineIcons.excelFile,
+                        color: Colors.white,
+                      ),
               ),
             ),
             const SizedBox(
