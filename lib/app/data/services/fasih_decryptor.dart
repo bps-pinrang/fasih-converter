@@ -3,14 +3,14 @@ import 'dart:typed_data';
 
 import 'package:pointycastle/export.dart';
 
+import '../core/env/app_env.dart';
+
 /// Decrypts data.json files encrypted by FASIH's Kripto utility.
 ///
 /// FASIH encrypts with AES/CBC/PKCS7Padding + PKCS#12 key derivation (SHA-256),
 /// using a static application key and a per-file random salt/IV.
 /// Encrypted content format: base64(cipher)#base64(sha256)#base64(salt)#base64(iv)
 class FasihDecryptor {
-  // Sourced from CommonCons.ENCRYPTION_SECRET_KEY (FASIH APK v2.15.2)
-  static const _secretKey = '***REMOVED***';
   static const _iterations = 11000;
 
   /// Returns the decrypted plaintext, or null if [content] is not in the
@@ -65,7 +65,10 @@ class FasihDecryptor {
   static Uint8List _deriveKey(Uint8List saltBytes) {
     final gen = PKCS12ParametersGenerator(SHA256Digest())
       ..init(
-          _formatPkcs12Password(_secretKey.codeUnits), saltBytes, _iterations);
+        _formatPkcs12Password(AppEnv.fasihSecretKey.codeUnits),
+        saltBytes,
+        _iterations,
+      );
     return (gen.generateDerivedParameters(32)).key;
   }
 

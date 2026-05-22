@@ -8,7 +8,7 @@ import 'package:pointycastle/export.dart';
 /// Encrypts [plaintext] using the same algorithm FASIH uses, so we have a
 /// known ciphertext to verify against.
 String _fasihEncrypt(String plaintext) {
-  const key = '***REMOVED***';
+  const key = 'Z!,vDKUPv;.Jy0Q4Eq1wVCY-a_!GnT';
   const iterations = 11000;
 
   // Random-looking but deterministic salt/IV for tests
