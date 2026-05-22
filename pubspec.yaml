@@ -1,55 +1,53 @@
 name: json_converter
-version: 1.0.7+8
+version: 1.0.8+9
 publish_to: none
-description: A new Flutter project.
-environment: 
-  sdk: '>=2.17.5 <3.0.0'
+description: Fasih Converter - Generic FASIH backup to Excel/Sheets
 
-dependencies: 
-  cupertino_icons: ^1.0.2
-  get: any
-  gsheets: any
-  async_zip: any
-  dotted_border: any
-  file_picker: any
-  permission_handler: any
-  filesize: any
-  flutter_archive: any
-  path_provider: any
-  data_table_2: any
-  flutter_spinkit: any
-  google_fonts: any
-  url: any
-  url_launcher: any
-  flutter_config: any
-  package_info_plus: any
-  line_icons: any
-  syncfusion_flutter_xlsio: 20.1.61-beta
-  share_plus: 4.0.10
-  percent_indicator: 4.2.2
-  flutter: 
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
     sdk: flutter
+  cupertino_icons: ^1.0.8
+  get: ^4.6.6
+  gsheets: ^0.5.0
+  file_picker: ^8.0.0
+  flutter_archive: ^6.0.1
+  path_provider: ^2.1.3
+  data_table_2: ^2.5.12
+  flutter_spinkit: ^5.2.0
+  google_fonts: ^6.2.1
+  url_launcher: ^6.3.0
+  package_info_plus: ^8.0.0
+  line_icons: ^2.0.3
+  syncfusion_flutter_xlsio: ^25.1.41
+  share_plus: ^10.0.0
+  percent_indicator: ^4.2.3
+  permission_handler: ^11.3.1
+  shared_preferences: ^2.3.2
+  path: ^1.9.0
+  dotted_border: ^2.1.0
+  filesize: ^2.0.1
 
-dev_dependencies: 
-  flutter_lints: any
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
   flutter_app_name: any
-  change_app_package_name: any
-  flutter_launcher_icons: any
-  flutter_test: 
-    sdk: flutter
+  flutter_launcher_icons: ^0.9.3
 
-flutter: 
-  assets: 
+flutter:
+  assets:
     - assets/launchers/
     - assets/credentials/
   uses-material-design: true
 
-flutter_app_name: 
+flutter_app_name:
   name: Fasih Converter
 
-flutter_icons: 
+flutter_icons:
   image_path: assets/launchers/icon.png
   image_path_android: assets/launchers/icon.png
   ios: true
   android: true
-
