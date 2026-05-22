@@ -140,7 +140,7 @@ void main() {
       expect(result.meta.first.answersRelPath, 'q1/section1/item1');
     });
 
-    test('merges multiple data.json files under one respondent', () async {
+    test('emits one record per data.json under one respondent', () async {
       final dir1 = Directory(
         '${tempDir.path}/respondent-uuid-2/answers/q1/section1/item1',
       )..createSync(recursive: true);
@@ -157,10 +157,52 @@ void main() {
 
       final result = await reader.loadRecords(tempDir, _testTemplate());
 
-      expect(result.records.length, 1);
-      expect(result.records.first['r101'], 'Budi');
-      expect(result.records.first['r102'], '40');
+      expect(result.records.length, 2);
+      final r101Values = result.records.map((r) => r['r101']).toSet();
+      final r102Values = result.records.map((r) => r['r102']).toSet();
+      expect(r101Values, containsAll(['Budi', '']));
+      expect(r102Values, containsAll(['40', '']));
       expect(result.meta.length, 2);
+    });
+
+    test('rejects data.json whose templateDataKey mismatches the template',
+        () async {
+      // PODES backup: 5 cross-survey data.json files (gc_sbr2023) + 1 PODES.
+      // Each file declares its own templateDataKey but lacks templateId.
+      final gcDir = Directory(
+        '${tempDir.path}/resp-mixed/answers/sbr/sec/item1',
+      )..createSync(recursive: true);
+      _writeDataJsonWithDataKey(gcDir, 'gc_sbr2023', [
+        {'dataKey': 'sbr101', 'answer': 'JAWARA ENERGI SEMESTA'},
+      ]);
+
+      final podesDir = Directory(
+        '${tempDir.path}/resp-mixed/answers/podes/sec/item1',
+      )..createSync(recursive: true);
+      _writeDataJsonWithDataKey(podesDir, 'test', [
+        {'dataKey': 'r101', 'answer': 'PODES Answer'},
+      ]);
+
+      final result = await reader.loadRecords(tempDir, _testTemplate());
+
+      // _testTemplate has dataKey='test', so only the PODES file passes.
+      expect(result.records.length, 1);
+      expect(result.records.first['r101'], 'PODES Answer');
+      expect(result.records.first['sbr101'], '');
+    });
+
+    test('rejects data.json whose templateId mismatches the template',
+        () async {
+      final wrongDir = Directory(
+        '${tempDir.path}/resp-wrong/answers/x/y/z',
+      )..createSync(recursive: true);
+      _writeDataJsonWithTemplateId(wrongDir, 'other-uuid', [
+        {'dataKey': 'r101', 'answer': 'should not appear'},
+      ]);
+
+      final result = await reader.loadRecords(tempDir, _testTemplate());
+
+      expect(result.records, isEmpty);
     });
 
     test('handles array-type answers', () async {
@@ -292,5 +334,15 @@ void _writeDataJsonWithTemplateId(
 ) {
   File('${dir.path}/data.json').writeAsStringSync(
     jsonEncode({'templateId': templateId, 'answers': answers}),
+  );
+}
+
+void _writeDataJsonWithDataKey(
+  Directory dir,
+  String templateDataKey,
+  List<Map<String, dynamic>> answers,
+) {
+  File('${dir.path}/data.json').writeAsStringSync(
+    jsonEncode({'templateDataKey': templateDataKey, 'answers': answers}),
   );
 }

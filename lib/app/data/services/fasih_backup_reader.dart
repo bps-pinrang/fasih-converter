@@ -178,43 +178,46 @@ class FasihBackupReader {
     required List<FasihRecord> records,
     required List<RespondentMeta> meta,
   }) async {
-    final mergedValues = <String, String>{};
-    final respMeta = <RespondentMeta>[];
-
     await for (final entity in searchDir.list(recursive: true)) {
       if (entity is! File || p.basename(entity.path) != 'data.json') continue;
       final relPath = p.relative(entity.parent.path, from: answersBaseDir.path);
       final rawJson = await entity.readAsString();
-      final parsed = await _parseDataFile(entity, templateId: template.id);
-      if (parsed != null) {
-        mergedValues.addAll(parsed.values);
-        respMeta.add(
-          RespondentMeta(
-            respUuid: respUuid,
-            answersRelPath: relPath,
-            rawDataJson: rawJson,
-          ),
-        );
-      }
-    }
-
-    if (mergedValues.isNotEmpty) {
-      records.add(FasihRecord(mergedValues));
-      meta.addAll(respMeta);
+      final parsed = await _parseDataFile(
+        entity,
+        templateId: template.id,
+        templateDataKey: template.dataKey,
+      );
+      if (parsed == null) continue;
+      records.add(parsed);
+      meta.add(
+        RespondentMeta(
+          respUuid: respUuid,
+          answersRelPath: relPath,
+          rawDataJson: rawJson,
+        ),
+      );
     }
   }
 
   Future<FasihRecord?> _parseDataFile(
     File file, {
     String? templateId,
+    String? templateDataKey,
   }) async {
     try {
       final raw = await file.readAsString();
       final map = jsonDecode(raw) as Map<String, dynamic>;
 
-      if (templateId != null) {
-        final fileTemplateId = map[kColumnTemplateId] as String?;
-        if (fileTemplateId != null && fileTemplateId != templateId) return null;
+      // Reject if the file declares a templateId/dataKey that does not match.
+      // Files with neither field present are accepted (legacy backups).
+      final fileTemplateId = map[kColumnTemplateId] as String?;
+      final fileDataKey = map[kColumnTemplateDataKey] as String?;
+      if (fileTemplateId != null && fileTemplateId.isNotEmpty) {
+        if (templateId != null && fileTemplateId != templateId) return null;
+      } else if (fileDataKey != null && fileDataKey.isNotEmpty) {
+        if (templateDataKey != null && fileDataKey != templateDataKey) {
+          return null;
+        }
       }
 
       final answersRaw = map[kColumnAnswers];

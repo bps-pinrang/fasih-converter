@@ -97,5 +97,34 @@ void main() {
       expect(metaSheet.getRangeByIndex(8, 1).getText(), 'resp-2');
       workbook.dispose();
     });
+
+    test('data sheet name is truncated to Excel 31-char limit', () {
+      // Excel rejects sheet names longer than 31 characters.
+      final longTemplate = FasihTemplate.fromJson(
+        'tpl-long-uuid',
+        jsonEncode({
+          'title': 'Long Survey',
+          'dataKey': 'PODES2024-DESA-FF-extra-suffix-that-overflows',
+          'components': [
+            [
+              {'type': 25, 'dataKey': 'r101', 'label': 'Q1'},
+            ],
+          ],
+        }),
+      );
+      final writer = FasihBackupWriter();
+      final workbook = writer.buildWorkbook(
+        template: longTemplate,
+        records: const [],
+        respondentMeta: const [],
+        envJson: '[]',
+      );
+      expect(workbook.worksheets[0].name.length, lessThanOrEqualTo(31));
+      expect(
+        workbook.worksheets[0].name,
+        'PODES2024-DESA-FF-extra-suffix-'.substring(0, 31),
+      );
+      workbook.dispose();
+    });
   });
 }
