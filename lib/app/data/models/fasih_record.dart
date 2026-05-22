@@ -7,7 +7,12 @@ class FasihRecord {
 
   static String extractAnswer(dynamic raw) {
     if (raw == null) return '';
-    if (raw is String) return raw;
+    if (raw is String) {
+      // FASIH's JS form engine occasionally stores un-serialized objects as
+      // the literal string "[object Object]" — treat as empty.
+      if (raw == '[object Object]') return '';
+      return raw;
+    }
     if (raw is List) {
       if (raw.isEmpty) return '';
       return raw.map((e) {
