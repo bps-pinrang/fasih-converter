@@ -1,17 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:json_converter/app/data/repositories/settings_repository.dart';
-import 'package:json_converter/app/routes/app_pages.dart';
+import 'package:json_converter/app/di/injection.dart';
+import 'package:json_converter/app/router/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SettingsRepository.init();
-  runApp(
-    GetMaterialApp(
+  await configureDependencies();
+  runApp(const App());
+}
+
+class App extends StatefulWidget {
+  const App({super.key});
+
+  @override
+  State<App> createState() => _AppState();
+}
+
+class _AppState extends State<App> {
+  final _router = AppRouter();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
       title: 'Fasih Converter',
-      initialRoute: AppPages.INITIAL,
-      getPages: AppPages.routes,
       debugShowCheckedModeBanner: false,
-    ),
-  );
+      routerConfig: _router.config(),
+    );
+  }
 }

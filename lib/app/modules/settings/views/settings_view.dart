@@ -1,7 +1,9 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/settings_controller.dart';
 
+@RoutePage()
 class SettingsView extends GetView<SettingsController> {
   const SettingsView({super.key});
 
