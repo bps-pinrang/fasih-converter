@@ -2,13 +2,14 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:json_converter/app/data/core/env/app_env.dart';
 import 'package:json_converter/app/data/services/fasih_decryptor.dart';
 import 'package:pointycastle/export.dart';
 
 /// Encrypts [plaintext] using the same algorithm FASIH uses, so we have a
 /// known ciphertext to verify against.
 String _fasihEncrypt(String plaintext) {
-  const key = 'Z!,vDKUPv;.Jy0Q4Eq1wVCY-a_!GnT';
+  final key = AppEnv.fasihSecretKey;
   const iterations = 11000;
 
   // Random-looking but deterministic salt/IV for tests
