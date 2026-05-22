@@ -3,9 +3,7 @@ const kColumnAnswer = 'answer';
 const kColumnValue = 'value';
 const kColumnLabel = 'label';
 const kColumnDataKey = 'dataKey';
+const kColumnTemplateId = 'templateId';
 
-
-const kEnvKeyGoogleSheetId = 'GOOGLE_SHEET_ID';
-const kEnvKeyGoogleSheetUrl = 'GOOGLE_SHEET_URL';
-const kEnvKeyRutaSheetTitle = 'RUTA_SHEET_TITLE';
-const kEnvKeyArtSheetTitle = 'ART_SHEET_TITLE';
+const kPrefKeyCredentials = 'gsheets_credentials';
+const kPrefKeySheetId = 'gsheets_sheet_id';
