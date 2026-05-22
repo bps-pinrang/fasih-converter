@@ -24,7 +24,7 @@ class SettingsCubit extends Cubit<SettingsState> {
         ));
 
   Future<void> pickCredentialsFile() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['json'],
     );
