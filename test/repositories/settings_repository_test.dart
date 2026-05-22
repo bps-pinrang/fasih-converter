@@ -28,8 +28,8 @@ void main() {
 
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
-      await SettingsRepository.init();
-      repo = SettingsRepository.instance;
+      final prefs = await SharedPreferences.getInstance();
+      repo = SettingsRepository(prefs);
     });
 
     test('returns true for valid service account JSON', () {
