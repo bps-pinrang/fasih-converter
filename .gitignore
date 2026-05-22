@@ -52,3 +52,11 @@ app.*.map.json
 .dolt/
 *.db
 .beads-credential-key
+
+# Local docs / AI context files
+docs/
+CLAUDE.md
+AGENTS.md
+.codegraph/
+*.bfg-report/
+.claude/
