@@ -51,7 +51,7 @@ class HomeCubit extends Cubit<HomeState> {
     _cleanup();
 
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         allowMultiple: false,
         type: FileType.custom,
         allowedExtensions: ['zip'],
