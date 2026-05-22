@@ -2,6 +2,30 @@ import 'dart:convert';
 
 const _skipTypes = {1, 3};
 
+class FasihValidationTest {
+  final String test;
+  final String message;
+  final int type;
+
+  const FasihValidationTest({
+    required this.test,
+    required this.message,
+    required this.type,
+  });
+}
+
+class FasihValidationRule {
+  final String dataKey;
+  final List<String> componentValidation;
+  final List<FasihValidationTest> validations;
+
+  const FasihValidationRule({
+    required this.dataKey,
+    required this.componentValidation,
+    required this.validations,
+  });
+}
+
 class FasihTemplateField {
   final String dataKey;
   final String label;
@@ -20,6 +44,7 @@ class FasihTemplate {
   final String dataKey;
   final List<FasihTemplateField> fields;
   final String rawJson;
+  final List<FasihValidationRule> validationRules;
 
   const FasihTemplate({
     required this.id,
@@ -27,7 +52,18 @@ class FasihTemplate {
     required this.dataKey,
     required this.fields,
     required this.rawJson,
+    this.validationRules = const [],
   });
+
+  FasihTemplate withValidationRules(List<FasihValidationRule> rules) =>
+      FasihTemplate(
+        id: id,
+        title: title,
+        dataKey: dataKey,
+        fields: fields,
+        rawJson: rawJson,
+        validationRules: rules,
+      );
 
   static FasihTemplate fromJson(String id, String jsonStr) {
     final map = jsonDecode(jsonStr) as Map<String, dynamic>;
@@ -62,9 +98,25 @@ class FasihTemplate {
           continue;
         }
         final rawLabel = (component['label'] as String?) ?? dataKey;
-        final label = rawLabel.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+        final label = _cleanLabel(rawLabel);
+        if (label.isEmpty || label == 'New Question') continue;
         out.add(FasihTemplateField(dataKey: dataKey, label: label, type: type));
       }
     }
+  }
+
+  static String _cleanLabel(String raw) {
+    return raw
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll(r'$nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll(RegExp(r'&#\d+;'), '')
+        .replaceAll(RegExp(r'\$[A-Z][A-Z0-9_]*\$'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 }

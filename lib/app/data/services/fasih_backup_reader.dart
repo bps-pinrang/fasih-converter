@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_archive/flutter_archive.dart';
+import 'package:archive/archive_io.dart';
 import 'package:injectable/injectable.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -25,14 +25,34 @@ class FasihBackupReader {
   Future<Directory> extractZip(File zipFile) async {
     final appDir = await getApplicationDocumentsDirectory();
     final name = p.basenameWithoutExtension(zipFile.path);
-    final dest = Directory('${appDir.path}/$name');
+    final dest = Directory(p.join(appDir.path, name));
     if (await dest.exists()) await dest.delete(recursive: true);
     await dest.create(recursive: true);
-    await ZipFile.extractToDirectory(
-      zipFile: zipFile,
-      destinationDir: dest,
-    );
+
+    final bytes = await zipFile.readAsBytes();
+    final archive = ZipDecoder().decodeBytes(bytes);
+    for (final entry in archive) {
+      final entryPath = _sanitizePath(entry.name);
+      if (entryPath == null) continue;
+      if (entry.isFile) {
+        final outFile = File(p.join(dest.path, entryPath));
+        await outFile.parent.create(recursive: true);
+        await outFile.writeAsBytes(entry.content as List<int>);
+      }
+    }
     return dest;
+  }
+
+  /// Normalises a ZIP entry name to a safe relative path.
+  /// Returns null if the entry should be skipped (traversal or empty).
+  String? _sanitizePath(String name) {
+    var clean = name.replaceAll('\\', '/');
+    // Strip leading slashes and ./ prefixes
+    while (clean.startsWith('/') || clean.startsWith('./')) {
+      clean = clean.startsWith('./') ? clean.substring(2) : clean.substring(1);
+    }
+    if (clean.isEmpty || clean.split('/').contains('..')) return null;
+    return clean;
   }
 
   Future<List<FasihTemplate>> discoverTemplates(Directory backupDir) async {
@@ -46,9 +66,44 @@ class FasihBackupReader {
       final jsonFile = File(p.join(entry.path, '${uuid}_template.json'));
       if (!await jsonFile.exists()) continue;
       final content = await jsonFile.readAsString();
-      templates.add(FasihTemplate.fromJson(uuid, content));
+      final template = FasihTemplate.fromJson(uuid, content);
+
+      final validationFile =
+          File(p.join(entry.path, '${uuid}_validation.json'));
+      if (await validationFile.exists()) {
+        final rules = _parseValidation(await validationFile.readAsString());
+        templates.add(template.withValidationRules(rules));
+      } else {
+        templates.add(template);
+      }
     }
     return templates;
+  }
+
+  List<FasihValidationRule> _parseValidation(String json) {
+    try {
+      final map = jsonDecode(json) as Map<String, dynamic>;
+      final funcs = map['testFunctions'] as List? ?? [];
+      return funcs.map((f) {
+        final comps = (f['componentValidation'] as List? ?? []).cast<String>();
+        final tests = (f['validations'] as List? ?? [])
+            .map(
+              (v) => FasihValidationTest(
+                test: v['test'] as String? ?? '',
+                message: v['message'] as String? ?? '',
+                type: v['type'] as int? ?? 0,
+              ),
+            )
+            .toList();
+        return FasihValidationRule(
+          dataKey: f['dataKey'] as String? ?? '',
+          componentValidation: comps,
+          validations: tests,
+        );
+      }).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<RespondentLoadResult> loadRecords(
@@ -62,26 +117,32 @@ class FasihBackupReader {
       if (entry is! Directory) continue;
       if (_skipDirs.contains(p.basename(entry.path))) continue;
 
-      final respUuid = p.basename(entry.path);
       final answersDir = Directory(p.join(entry.path, 'answers'));
       if (!await answersDir.exists()) continue;
 
-      await for (final questionEntry in answersDir.list()) {
-        if (questionEntry is! Directory) continue;
-        final questionUuid = p.basename(questionEntry.path);
-        final dataFile = File(p.join(questionEntry.path, 'data.json'));
-        if (!await dataFile.exists()) continue;
-
-        final rawJson = await dataFile.readAsString();
-        final record = await _parseDataFile(dataFile);
-        if (record == null) continue;
-
-        records.add(record);
-        meta.add(RespondentMeta(
-          respUuid: respUuid,
-          questionUuid: questionUuid,
-          rawDataJson: rawJson,
-        ));
+      if (await _isSessionFormat(answersDir)) {
+        // New format: <sessionUUID>/answers/<respUUID>/...
+        await for (final respEntry in answersDir.list()) {
+          if (respEntry is! Directory) continue;
+          await _loadRespondent(
+            respUuid: p.basename(respEntry.path),
+            searchDir: respEntry,
+            answersBaseDir: respEntry,
+            template: template,
+            records: records,
+            meta: meta,
+          );
+        }
+      } else {
+        // Old format: <respUUID>/answers/...
+        await _loadRespondent(
+          respUuid: p.basename(entry.path),
+          searchDir: answersDir,
+          answersBaseDir: answersDir,
+          template: template,
+          records: records,
+          meta: meta,
+        );
       }
     }
 
@@ -94,10 +155,67 @@ class FasihBackupReader {
     return RespondentLoadResult(records: records, meta: meta, envJson: envJson);
   }
 
-  Future<FasihRecord?> _parseDataFile(File file) async {
+  Future<bool> _isSessionFormat(Directory answersDir) async {
+    await for (final entity in answersDir.list(recursive: true)) {
+      if (entity is! File || p.basename(entity.path) != 'data.json') continue;
+      try {
+        final raw = await entity.readAsString();
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        final tid = map[kColumnTemplateId];
+        return tid != null && (tid as String).isNotEmpty;
+      } catch (_) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  Future<void> _loadRespondent({
+    required String respUuid,
+    required Directory searchDir,
+    required Directory answersBaseDir,
+    required FasihTemplate template,
+    required List<FasihRecord> records,
+    required List<RespondentMeta> meta,
+  }) async {
+    final mergedValues = <String, String>{};
+    final respMeta = <RespondentMeta>[];
+
+    await for (final entity in searchDir.list(recursive: true)) {
+      if (entity is! File || p.basename(entity.path) != 'data.json') continue;
+      final relPath = p.relative(entity.parent.path, from: answersBaseDir.path);
+      final rawJson = await entity.readAsString();
+      final parsed = await _parseDataFile(entity, templateId: template.id);
+      if (parsed != null) {
+        mergedValues.addAll(parsed.values);
+        respMeta.add(
+          RespondentMeta(
+            respUuid: respUuid,
+            answersRelPath: relPath,
+            rawDataJson: rawJson,
+          ),
+        );
+      }
+    }
+
+    if (mergedValues.isNotEmpty) {
+      records.add(FasihRecord(mergedValues));
+      meta.addAll(respMeta);
+    }
+  }
+
+  Future<FasihRecord?> _parseDataFile(
+    File file, {
+    String? templateId,
+  }) async {
     try {
       final raw = await file.readAsString();
       final map = jsonDecode(raw) as Map<String, dynamic>;
+
+      if (templateId != null) {
+        final fileTemplateId = map[kColumnTemplateId] as String?;
+        if (fileTemplateId != null && fileTemplateId != templateId) return null;
+      }
 
       final answersRaw = map[kColumnAnswers];
       if (answersRaw is! List) return null;

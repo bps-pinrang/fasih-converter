@@ -31,12 +31,12 @@ void main() {
     meta = [
       RespondentMeta(
         respUuid: 'resp-1',
-        questionUuid: 'q-uuid-1',
+        answersRelPath: 'q1/section1/item1',
         rawDataJson: '{"respondentId":"resp-1","answers":[]}',
       ),
       RespondentMeta(
         respUuid: 'resp-2',
-        questionUuid: 'q-uuid-2',
+        answersRelPath: 'q1/section1/item2',
         rawDataJson: '{"respondentId":"resp-2","answers":[]}',
       ),
     ];

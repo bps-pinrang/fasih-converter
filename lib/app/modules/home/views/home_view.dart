@@ -15,6 +15,8 @@ import '../../../router/app_router.dart';
 import '../cubit/home_cubit.dart';
 import '../cubit/home_side_effect.dart';
 import '../cubit/home_state.dart';
+import 'debug_view.dart';
+import 'history_page.dart';
 import 'widgets/home_action_row.dart';
 import 'widgets/home_data_table.dart';
 import 'widgets/home_drop_zone.dart';
@@ -104,32 +106,45 @@ class _HomeViewState extends State<HomeView> {
   void _showTemplatePicker(List<FasihTemplate> templates) {
     showModalBottomSheet<void>(
       context: context,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Pilih Survey',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            ...templates.map(
-              (t) => ListTile(
-                title: Text(t.title),
-                subtitle: Text('${t.fields.length} kolom · ${t.dataKey}'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  context.read<HomeCubit>().selectTemplate(t);
-                },
+      isScrollControlled: true,
+      builder: (sheetContext) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.5,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Pilih Survey',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  itemCount: templates.length,
+                  itemBuilder: (_, i) {
+                    final t = templates[i];
+                    return ListTile(
+                      title: Text(t.title),
+                      subtitle: Text('${t.fields.length} kolom · ${t.dataKey}'),
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        _cubit.selectTemplate(t);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -145,6 +160,30 @@ class _HomeViewState extends State<HomeView> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           actions: [
+            IconButton(
+              icon: const Icon(Icons.history_outlined),
+              tooltip: 'Riwayat',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => HistoryPage(
+                    cubit: _cubit,
+                    settings: getIt<SettingsRepository>(),
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.bug_report_outlined),
+              tooltip: 'Debug',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => BlocProvider.value(
+                    value: _cubit,
+                    child: const DebugView(),
+                  ),
+                ),
+              ),
+            ),
             IconButton(
               icon: const Icon(Icons.settings_outlined),
               onPressed: () => context.pushRoute(const SettingsRoute()),
