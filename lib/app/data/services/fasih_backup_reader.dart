@@ -10,6 +10,7 @@ import '../core/values/strings.dart';
 import '../models/fasih_record.dart';
 import '../models/fasih_template.dart';
 import '../models/respondent_load_result.dart';
+import 'fasih_decryptor.dart';
 import 'fasih_backup_writer.dart';
 
 @singleton
@@ -160,7 +161,8 @@ class FasihBackupReader {
       if (entity is! File || p.basename(entity.path) != 'data.json') continue;
       try {
         final raw = await entity.readAsString();
-        final map = jsonDecode(raw) as Map<String, dynamic>;
+        final map = await _decodeJson(raw);
+        if (map == null) return false;
         final tid = map[kColumnTemplateId];
         return tid != null && (tid as String).isNotEmpty;
       } catch (_) {
@@ -199,6 +201,22 @@ class FasihBackupReader {
     }
   }
 
+  /// Parses [raw] as JSON, transparently decrypting if needed.
+  /// Returns null when the content is unreadable.
+  Future<Map<String, dynamic>?> _decodeJson(String raw) async {
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      final decrypted = FasihDecryptor.tryDecrypt(raw);
+      if (decrypted == null) return null;
+      try {
+        return jsonDecode(decrypted) as Map<String, dynamic>;
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
   Future<FasihRecord?> _parseDataFile(
     File file, {
     String? templateId,
@@ -206,7 +224,8 @@ class FasihBackupReader {
   }) async {
     try {
       final raw = await file.readAsString();
-      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final map = await _decodeJson(raw);
+      if (map == null) return null;
 
       // Reject if the file declares a templateId/dataKey that does not match.
       // Files with neither field present are accepted (legacy backups).
