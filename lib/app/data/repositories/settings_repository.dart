@@ -1,23 +1,17 @@
 import 'dart:convert';
 
+import 'package:injectable/injectable.dart';
 import 'package:json_converter/app/data/core/values/strings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+@singleton
 class SettingsRepository {
   static const _credKey = kPrefKeyCredentials;
   static const _sheetIdKey = kPrefKeySheetId;
 
-  static SettingsRepository? _instance;
-  static SettingsRepository get instance => _instance!;
-
   final SharedPreferences _prefs;
 
-  SettingsRepository._(this._prefs);
-
-  static Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    _instance = SettingsRepository._(prefs);
-  }
+  const SettingsRepository(this._prefs);
 
   String? get credentialsJson => _prefs.getString(_credKey);
   String? get sheetId => _prefs.getString(_sheetIdKey);
