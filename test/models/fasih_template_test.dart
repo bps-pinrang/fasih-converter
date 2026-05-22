@@ -62,5 +62,9 @@ void main() {
     test('returns empty string for null', () {
       expect(FasihRecord.extractAnswer(null), '');
     });
+
+    test('sanitizes [object Object] to empty string', () {
+      expect(FasihRecord.extractAnswer('[object Object]'), '');
+    });
   });
 }
