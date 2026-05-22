@@ -8,7 +8,7 @@ import 'package:json_converter/app/data/models/fasih_template.dart';
 import 'package:json_converter/app/data/providers/fasih_converter_sheet_api.dart';
 import 'package:json_converter/app/data/repositories/settings_repository.dart';
 import 'package:json_converter/app/data/services/fasih_backup_reader.dart';
-import 'package:json_converter/app/routes/app_routes.dart';
+import 'package:json_converter/app/routes/app_pages.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:permission_handler/permission_handler.dart' as perm;
@@ -265,7 +265,8 @@ class HomeController extends GetxController {
   }
 
   void _cleanup() {
-    _extractedDir?.delete(recursive: true).catchError((_) {});
+    final dir = _extractedDir;
     _extractedDir = null;
+    dir?.delete(recursive: true).catchError((_) => dir);
   }
 }
