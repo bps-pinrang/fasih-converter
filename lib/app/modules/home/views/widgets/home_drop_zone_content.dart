@@ -14,8 +14,39 @@ class HomeDropZoneContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state is HomeLoadingFile) {
-      return const Center(
-        child: SpinKitFadingCircle(color: Colors.blue, size: 30),
+      final loading = state as HomeLoadingFile;
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (loading.total > 0) ...[
+                LinearProgressIndicator(value: loading.progress),
+                const SizedBox(height: 10),
+                Text(
+                  loading.label,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${(loading.progress! * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ] else ...[
+                const SpinKitFadingCircle(color: Colors.blue, size: 30),
+                const SizedBox(height: 10),
+                Text(
+                  loading.label,
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ],
+          ),
+        ),
       );
     }
 
