@@ -180,6 +180,7 @@ class FasihBackupReader {
     required List<FasihRecord> records,
     required List<RespondentMeta> meta,
   }) async {
+    final fieldKeys = template.fields.map((f) => f.dataKey).toSet();
     await for (final entity in searchDir.list(recursive: true)) {
       if (entity is! File || p.basename(entity.path) != 'data.json') continue;
       final relPath = p.relative(entity.parent.path, from: answersBaseDir.path);
@@ -188,6 +189,7 @@ class FasihBackupReader {
         entity,
         templateId: template.id,
         templateDataKey: template.dataKey,
+        fieldKeys: fieldKeys,
       );
       if (parsed == null) continue;
       records.add(parsed);
@@ -221,6 +223,7 @@ class FasihBackupReader {
     File file, {
     String? templateId,
     String? templateDataKey,
+    Set<String>? fieldKeys,
   }) async {
     try {
       final raw = await file.readAsString();
@@ -249,6 +252,16 @@ class FasihBackupReader {
         if (key == null) continue;
         values[key] = FasihRecord.extractAnswer(item[kColumnAnswer]);
       }
+
+      // Cross-template guard: if the file has answers but none of its keys
+      // match this template's fields, it belongs to a different survey.
+      if (fieldKeys != null &&
+          fieldKeys.isNotEmpty &&
+          values.isNotEmpty &&
+          !values.keys.any(fieldKeys.contains)) {
+        return null;
+      }
+
       return FasihRecord(values);
     } catch (_) {
       return null;

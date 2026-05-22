@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -68,7 +69,9 @@ class HomeCubit extends Cubit<HomeState> {
         emit(const HomeInitial());
         return;
       }
-      final result = await _reader.loadRecords(dir, template);
+      final result = await Isolate.run(
+        () => FasihBackupReader().loadRecords(Directory(dirPath), template),
+      );
       emit(HomeFileLoaded(
         file: PlatformFile(
           name: _settings.lastZipName ?? 'backup.zip',
@@ -166,7 +169,10 @@ class HomeCubit extends Cubit<HomeState> {
 
   Future<void> _loadTemplate(PlatformFile file, FasihTemplate template) async {
     try {
-      final result = await _reader.loadRecords(_extractedDir!, template);
+      final dirPath = _extractedDir!.path;
+      final result = await Isolate.run(
+        () => FasihBackupReader().loadRecords(Directory(dirPath), template),
+      );
       emit(HomeFileLoaded(
         file: file,
         template: template,
@@ -206,15 +212,22 @@ class HomeCubit extends Cubit<HomeState> {
 
     emit(current.copyWith(isExporting: true));
     try {
-      final workbook = _writer.buildWorkbook(
-        template: current.template,
-        records: current.records,
-        respondentMeta: current.respondentMeta,
-        envJson: current.envJson,
-      );
+      final template = current.template;
+      final records = current.records;
+      final respondentMeta = current.respondentMeta;
+      final envJson = current.envJson;
 
-      final bytes = workbook.saveAsStream();
-      workbook.dispose();
+      final bytes = await Isolate.run(() {
+        final wb = FasihBackupWriter().buildWorkbook(
+          template: template,
+          records: records,
+          respondentMeta: respondentMeta,
+          envJson: envJson,
+        );
+        final b = wb.saveAsStream();
+        wb.dispose();
+        return b;
+      });
 
       final dir = await createExportDir('Export');
       final fileName = '${_safeFileName(current.template.dataKey)}.xlsx';
