@@ -16,8 +16,52 @@ import 'package:permission_handler/permission_handler.dart' as perm;
 import 'package:share_plus/share_plus.dart';
 
 import '../../../data/core/utils/helpers.dart';
+import '../../../data/models/respondent_load_result.dart';
 import 'home_side_effect.dart';
 import 'home_state.dart';
+
+// ---------------------------------------------------------------------------
+// Isolate helpers for loadRecords — must be top-level so Isolate.spawn can
+// send them across isolate boundaries.
+// ---------------------------------------------------------------------------
+
+class _LoadArgs {
+  final String dirPath;
+  final FasihTemplate template;
+  final SendPort sendPort;
+
+  const _LoadArgs(this.dirPath, this.template, this.sendPort);
+}
+
+class _LoadProgress {
+  final int loaded;
+  final int total;
+  const _LoadProgress(this.loaded, this.total);
+}
+
+class _LoadDone {
+  final RespondentLoadResult result;
+  const _LoadDone(this.result);
+}
+
+class _LoadError {
+  final String message;
+  const _LoadError(this.message);
+}
+
+void _loadRecordsEntry(_LoadArgs args) async {
+  try {
+    final result = await FasihBackupReader().loadRecords(
+      Directory(args.dirPath),
+      args.template,
+      onProgress: (loaded, total) =>
+          args.sendPort.send(_LoadProgress(loaded, total)),
+    );
+    args.sendPort.send(_LoadDone(result));
+  } catch (e) {
+    args.sendPort.send(_LoadError(e.toString()));
+  }
+}
 
 class HomeCubit extends Cubit<HomeState> {
   final FasihBackupReader _reader;
@@ -31,6 +75,9 @@ class HomeCubit extends Cubit<HomeState> {
   String appVersion = '';
   Directory? _extractedDir;
   Directory? get extractedDir => _extractedDir;
+
+  Isolate? _loadIsolate;
+  ReceivePort? _loadPort;
 
   List<FasihTemplate> _availableTemplates = [];
   List<FasihTemplate> get availableTemplates => _availableTemplates;
@@ -69,9 +116,7 @@ class HomeCubit extends Cubit<HomeState> {
         emit(const HomeInitial());
         return;
       }
-      final result = await Isolate.run(
-        () => FasihBackupReader().loadRecords(Directory(dirPath), template),
-      );
+      final result = await _loadRecordsWithProgress(dirPath, template);
       emit(HomeFileLoaded(
         file: PlatformFile(
           name: _settings.lastZipName ?? 'backup.zip',
@@ -169,10 +214,8 @@ class HomeCubit extends Cubit<HomeState> {
 
   Future<void> _loadTemplate(PlatformFile file, FasihTemplate template) async {
     try {
-      final dirPath = _extractedDir!.path;
-      final result = await Isolate.run(
-        () => FasihBackupReader().loadRecords(Directory(dirPath), template),
-      );
+      final result =
+          await _loadRecordsWithProgress(_extractedDir!.path, template);
       emit(HomeFileLoaded(
         file: file,
         template: template,
@@ -426,6 +469,45 @@ class HomeCubit extends Cubit<HomeState> {
     // Dirs are NOT deleted here — callers that want deletion do it explicitly.
   }
 
+  /// Spawns a background isolate to run [loadRecords], streaming progress
+  /// updates back to the main thread via [ReceivePort].
+  Future<RespondentLoadResult> _loadRecordsWithProgress(
+    String dirPath,
+    FasihTemplate template,
+  ) async {
+    _loadPort?.close();
+    _loadIsolate?.kill(priority: Isolate.immediate);
+
+    final completer = Completer<RespondentLoadResult>();
+    final port = ReceivePort();
+    _loadPort = port;
+
+    _loadIsolate = await Isolate.spawn(
+      _loadRecordsEntry,
+      _LoadArgs(dirPath, template, port.sendPort),
+    );
+
+    port.listen((msg) {
+      if (msg is _LoadProgress) {
+        if (!isClosed) {
+          emit(HomeLoadingFile(loaded: msg.loaded, total: msg.total));
+        }
+      } else if (msg is _LoadDone) {
+        port.close();
+        _loadPort = null;
+        _loadIsolate = null;
+        if (!completer.isCompleted) completer.complete(msg.result);
+      } else if (msg is _LoadError) {
+        port.close();
+        _loadPort = null;
+        _loadIsolate = null;
+        if (!completer.isCompleted) completer.completeError(msg.message);
+      }
+    });
+
+    return completer.future;
+  }
+
   /// Strips characters unsafe for filenames, collapses spaces to underscores.
   String _safeFileName(String name) => name
       .trim()
@@ -434,6 +516,8 @@ class HomeCubit extends Cubit<HomeState> {
 
   @override
   Future<void> close() {
+    _loadPort?.close();
+    _loadIsolate?.kill(priority: Isolate.immediate);
     _sideEffectsController.close();
     _cleanup();
     return super.close();

@@ -109,10 +109,15 @@ class FasihBackupReader {
 
   Future<RespondentLoadResult> loadRecords(
     Directory backupDir,
-    FasihTemplate template,
-  ) async {
+    FasihTemplate template, {
+    void Function(int loaded, int total)? onProgress,
+  }) async {
     final records = <FasihRecord>[];
     final meta = <RespondentMeta>[];
+
+    // First pass: collect all respondent tasks so we know the total upfront.
+    final tasks =
+        <({String respUuid, Directory searchDir, Directory answersBaseDir})>[];
 
     await for (final entry in backupDir.list()) {
       if (entry is! Directory) continue;
@@ -125,26 +130,34 @@ class FasihBackupReader {
         // New format: <sessionUUID>/answers/<respUUID>/...
         await for (final respEntry in answersDir.list()) {
           if (respEntry is! Directory) continue;
-          await _loadRespondent(
+          tasks.add((
             respUuid: p.basename(respEntry.path),
             searchDir: respEntry,
             answersBaseDir: respEntry,
-            template: template,
-            records: records,
-            meta: meta,
-          );
+          ));
         }
       } else {
         // Old format: <respUUID>/answers/...
-        await _loadRespondent(
+        tasks.add((
           respUuid: p.basename(entry.path),
           searchDir: answersDir,
           answersBaseDir: answersDir,
-          template: template,
-          records: records,
-          meta: meta,
-        );
+        ));
       }
+    }
+
+    // Second pass: process each respondent and report progress.
+    for (var i = 0; i < tasks.length; i++) {
+      final t = tasks[i];
+      await _loadRespondent(
+        respUuid: t.respUuid,
+        searchDir: t.searchDir,
+        answersBaseDir: t.answersBaseDir,
+        template: template,
+        records: records,
+        meta: meta,
+      );
+      onProgress?.call(i + 1, tasks.length);
     }
 
     final envFile = File(
