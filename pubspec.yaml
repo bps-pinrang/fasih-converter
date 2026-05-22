@@ -33,6 +33,7 @@ dependencies:
   path: ^1.9.0
   dotted_border: ^2.1.0
   filesize: ^2.0.1
+  archive: ">=3.6.1 <4.0.0"
 
 dev_dependencies:
   flutter_test:
