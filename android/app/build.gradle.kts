@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "id.go.bps.pinrangkab.fasih_converter"
-    compileSdk = 34
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -22,7 +22,7 @@ android {
     defaultConfig {
         applicationId = "id.go.bps.pinrangkab.fasih_converter"
         minSdk = flutter.minSdkVersion
-        targetSdk = 34
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
