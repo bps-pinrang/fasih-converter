@@ -3,9 +3,15 @@ const kColumnAnswer = 'answer';
 const kColumnValue = 'value';
 const kColumnLabel = 'label';
 const kColumnDataKey = 'dataKey';
+const kColumnTemplateId = 'templateId';
+const kColumnTemplateDataKey = 'templateDataKey';
 
+const kPrefKeyCredentials = 'gsheets_credentials';
+const kPrefKeySheetId = 'gsheets_sheet_id';
 
-const kEnvKeyGoogleSheetId = 'GOOGLE_SHEET_ID';
-const kEnvKeyGoogleSheetUrl = 'GOOGLE_SHEET_URL';
-const kEnvKeyRutaSheetTitle = 'RUTA_SHEET_TITLE';
-const kEnvKeyArtSheetTitle = 'ART_SHEET_TITLE';
+const kPrefKeyLastExtractedDir = 'last_extracted_dir';
+const kPrefKeyLastTemplateId = 'last_template_id';
+const kPrefKeyLastZipName = 'last_zip_name';
+const kPrefKeyLastZipSize = 'last_zip_size';
+
+const kPrefKeySessionHistory = 'session_history';

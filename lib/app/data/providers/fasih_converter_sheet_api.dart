@@ -1,59 +1,43 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_config/flutter_config.dart';
 import 'package:gsheets/gsheets.dart';
-import 'package:json_converter/app/data/core/values/strings.dart';
-import 'package:json_converter/app/data/models/art_fields.dart';
-import 'package:json_converter/app/data/models/ruta_fields.dart';
+import 'package:injectable/injectable.dart';
+import 'package:json_converter/app/data/repositories/settings_repository.dart';
 
+@singleton
 class FasihConverterSheetApi {
-  static late String _credentials;
-  static late String _sheetId;
+  final SettingsRepository _settings;
 
-  static late final GSheets _gSheets;
+  FasihConverterSheetApi(this._settings);
 
-  static Worksheet? _artSheet;
-  static Worksheet? _rutaSheet;
+  GSheets? _gsheets;
+  Spreadsheet? _spreadsheet;
+  Worksheet? _worksheet;
 
-  static Future init() async {
-    try {
-      _credentials = await rootBundle.loadString('assets/credentials/fasih-converter.json');
-      _gSheets = GSheets(_credentials);
-      _sheetId =  FlutterConfig.get(kEnvKeyGoogleSheetId);
-      final rutaTitle =  FlutterConfig.get(kEnvKeyRutaSheetTitle);
-      final artTitle =  FlutterConfig.get(kEnvKeyArtSheetTitle);
-      final spreadSheet = await _gSheets.spreadsheet(_sheetId);
-      _artSheet = await _getWorkSheet(spreadSheet, title: artTitle);
-      final artColumns = ARTFields().getFields();
-      _artSheet!.values.insertRow(1, artColumns);
-      _rutaSheet = await _getWorkSheet(spreadSheet, title: rutaTitle);
-      final rutaColumns = RutaFields().getFields();
-      _rutaSheet!.values.insertRow(1, rutaColumns);
-    } catch (e) {
-      debugPrint(e.toString());
-    }
+  Future<void> init(String sheetTitle) async {
+    final creds = _settings.credentialsJson!;
+    final sheetId = _settings.sheetId!;
+    _gsheets = GSheets(creds);
+    _spreadsheet = await _gsheets!.spreadsheet(sheetId);
+    _worksheet = _spreadsheet!.worksheetByTitle(sheetTitle) ??
+        await _spreadsheet!.addWorksheet(sheetTitle);
   }
 
-  static Future<Worksheet?> _getWorkSheet(Spreadsheet spreadsheet,
-      {required String title}) async {
-    try {
-      return await spreadsheet.addWorksheet(title);
-    } catch (e) {
-      return spreadsheet.worksheetByTitle(title);
+  Future<void> appendRows(
+    List<Map<String, dynamic>> rows,
+    List<String> headers,
+  ) async {
+    if (_worksheet == null) throw StateError('Not initialized');
+    final existing = await _worksheet!.values.allRows();
+    if (existing.isEmpty) {
+      await _worksheet!.values.insertRow(1, headers);
     }
+    final serialized =
+        rows.map((r) => headers.map((h) => '${r[h] ?? ''}').toList()).toList();
+    await _worksheet!.values.appendRows(serialized);
   }
 
-  static Future insertRuta(List<Map<String, dynamic>> rows) async {
-    if (_rutaSheet == null) {
-      throw Exception('Gagal melakukan insert!\nSheet tidak ditemukan!');
-    }
-    _rutaSheet!.values.map.appendRows(rows);
-  }
-
-  static Future insertART(List<Map<String, dynamic>> rows) async {
-    if (_artSheet == null) {
-      throw Exception('Gagal melakukan insert!\nSheet tidak ditemukan!');
-    }
-    _artSheet!.values.map.appendRows(rows);
+  void dispose() {
+    _gsheets = null;
+    _spreadsheet = null;
+    _worksheet = null;
   }
 }

@@ -47,3 +47,30 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# envied
+.env
+lib/app/data/core/env/app_env.g.dart
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+
+# Local docs / AI context files
+docs/
+CLAUDE.md
+AGENTS.md
+.codegraph/
+*.bfg-report/
+.claude/
+
+# Non-mobile platform directories
+macos/
+windows/
+linux/
+web/
+
+# Release signing — never commit
+android/app/release.jks
+android/key.properties

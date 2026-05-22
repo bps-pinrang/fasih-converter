@@ -1,6 +1,10 @@
 # FASIH CONVERTER
 
-*Fasih Converter* adalah aplikasi berbasis Android & iOS yang dibangun menggunakan *framework* [Flutter](https://flutter.dev). Aplikasi ini menggunakan [Google Sheets](https://docs.google.com) sebagai *backend*.
+*Fasih Converter* adalah aplikasi berbasis Android & iOS yang dibangun menggunakan *framework* [Flutter](https://flutter.dev).
+Aplikasi ini menggunakan [Google Sheets](https://docs.google.com) sebagai *backend*.
+
+***Fasih (Flexible and Authentic Survey Instrument Harmoni)*** merupakan aplikasi Android yang dikembangkan oleh Direktorat SIS BPS RI untuk membantu kegiatan pengumpulan data BPS baik kegiatan survei maupun kegiatan sensus.
+Aplikasi ini memanfaatkan *framework* [Form Gear](https://github.com/AdityaSetyadi/form-gear) sebagai *form builder*. 
 
 ## Requirements
 1. **Pastikan Flutter SDK terbaru terinstal di perangkat anda.**
@@ -57,3 +61,36 @@ flutter pub run change_app_package_name:main id.go.bps.pinrangkab.fasih_converte
 
 ## Screenshoot Aplikasi
 ![image.png](./screenshoots/ss_app_2.PNG)![image.png](./screenshoots/ss_app_1.PNG)![image.png](./screenshoots/ss_app_3.PNG)
+
+## Pengaturan Google Sheets
+
+Untuk menggunakan fitur upload ke Google Sheets, ikuti langkah berikut:
+
+### 1. Buat Project di Google Cloud Console
+1. Buka [console.cloud.google.com](https://console.cloud.google.com)
+2. Buat project baru atau gunakan yang sudah ada
+
+### 2. Aktifkan Google Sheets API
+1. Di menu kiri pilih **APIs & Services → Library**
+2. Cari "Google Sheets API" dan klik **Enable**
+
+### 3. Buat Service Account
+1. Buka **APIs & Services → Credentials**
+2. Klik **Create Credentials → Service Account**
+3. Isi nama service account, lanjut ke akhir
+4. Di halaman service account, buka tab **Keys**
+5. Klik **Add Key → Create New Key → JSON** → Download
+
+### 4. Konfigurasi Aplikasi
+1. Buka aplikasi Fasih Converter
+2. Ketuk ikon ⚙️ di pojok kanan atas
+3. Ketuk "Pilih file service account JSON" dan pilih file yang didownload
+4. Masukkan **Spreadsheet ID atau URL** dari spreadsheet tujuan
+
+### 5. Bagikan Spreadsheet ke Service Account
+1. Buka spreadsheet tujuan di Google Sheets
+2. Klik **Share** (Bagikan)
+3. Masukkan email service account (format: `xxx@project.iam.gserviceaccount.com`)
+4. Beri akses **Editor**
+
+Setelah itu, tombol "Upload Sheets" di aplikasi akan aktif.
