@@ -28,3 +28,8 @@ class ShowTemplatePicker extends HomeSideEffect {
 
   const ShowTemplatePicker(this.templates);
 }
+
+class ShowImportSuccess extends HomeSideEffect {
+  final String outputPath;
+  const ShowImportSuccess(this.outputPath);
+}

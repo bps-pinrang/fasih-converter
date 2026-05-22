@@ -17,6 +17,8 @@ import 'package:json_converter/app/data/repositories/settings_repository.dart'
     as _i55;
 import 'package:json_converter/app/data/services/fasih_backup_reader.dart'
     as _i123;
+import 'package:json_converter/app/data/services/fasih_backup_writer.dart'
+    as _i325;
 import 'package:json_converter/app/di/app_module.dart' as _i983;
 import 'package:shared_preferences/shared_preferences.dart' as _i460;
 
@@ -37,6 +39,7 @@ extension GetItInjectableX on _i174.GetIt {
       preResolve: true,
     );
     gh.singleton<_i123.FasihBackupReader>(() => _i123.FasihBackupReader());
+    gh.singleton<_i325.FasihBackupWriter>(() => _i325.FasihBackupWriter());
     gh.singleton<_i55.SettingsRepository>(
         () => _i55.SettingsRepository(gh<_i460.SharedPreferences>()));
     gh.singleton<_i183.FasihConverterSheetApi>(
