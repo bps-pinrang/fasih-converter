@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import '../core/values/strings.dart';
 import '../models/fasih_record.dart';
 import '../models/fasih_template.dart';
+import '../models/respondent_load_result.dart';
+import 'fasih_backup_writer.dart';
 
 @singleton
 class FasihBackupReader {
@@ -49,33 +51,47 @@ class FasihBackupReader {
     return templates;
   }
 
-  Future<List<FasihRecord>> loadRecords(
+  Future<RespondentLoadResult> loadRecords(
     Directory backupDir,
     FasihTemplate template,
   ) async {
     final records = <FasihRecord>[];
+    final meta = <RespondentMeta>[];
 
     await for (final entry in backupDir.list()) {
       if (entry is! Directory) continue;
       if (_skipDirs.contains(p.basename(entry.path))) continue;
 
-      final dataFiles = await _findDataFiles(entry);
-      for (final dataFile in dataFiles) {
+      final respUuid = p.basename(entry.path);
+      final answersDir = Directory(p.join(entry.path, 'answers'));
+      if (!await answersDir.exists()) continue;
+
+      await for (final questionEntry in answersDir.list()) {
+        if (questionEntry is! Directory) continue;
+        final questionUuid = p.basename(questionEntry.path);
+        final dataFile = File(p.join(questionEntry.path, 'data.json'));
+        if (!await dataFile.exists()) continue;
+
+        final rawJson = await dataFile.readAsString();
         final record = await _parseDataFile(dataFile);
-        if (record != null) records.add(record);
+        if (record == null) continue;
+
+        records.add(record);
+        meta.add(RespondentMeta(
+          respUuid: respUuid,
+          questionUuid: questionUuid,
+          rawDataJson: rawJson,
+        ));
       }
     }
 
-    return records;
-  }
+    final envFile = File(
+      p.join(backupDir.path, 'env', 'assignment_listing.json'),
+    );
+    final envJson =
+        await envFile.exists() ? await envFile.readAsString() : '[]';
 
-  Future<List<File>> _findDataFiles(Directory dir) async {
-    final results = <File>[];
-    await for (final entity in dir.list(recursive: true)) {
-      if (entity is! File || p.basename(entity.path) != 'data.json') continue;
-      results.add(entity);
-    }
-    return results;
+    return RespondentLoadResult(records: records, meta: meta, envJson: envJson);
   }
 
   Future<FasihRecord?> _parseDataFile(File file) async {

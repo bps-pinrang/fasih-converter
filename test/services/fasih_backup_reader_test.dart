@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:json_converter/app/data/models/fasih_template.dart';
 import 'package:json_converter/app/data/services/fasih_backup_reader.dart';
+import 'package:json_converter/app/data/models/respondent_load_result.dart';
 
 void main() {
   late Directory tempDir;
@@ -61,7 +62,8 @@ void main() {
   group('loadRecords', () {
     test('returns empty list when no respondent dirs exist', () async {
       final result = await reader.loadRecords(tempDir, _testTemplate());
-      expect(result, isEmpty);
+      expect(result.records, isEmpty);
+      expect(result.meta, isEmpty);
     });
 
     test('skips directories in _skipDirs', () async {
@@ -79,7 +81,7 @@ void main() {
         ]);
       }
       final result = await reader.loadRecords(tempDir, _testTemplate());
-      expect(result, isEmpty);
+      expect(result.records, isEmpty);
     });
 
     test('parses respondent data.json answers', () async {
@@ -92,9 +94,12 @@ void main() {
 
       final result = await reader.loadRecords(tempDir, _testTemplate());
 
-      expect(result.length, 1);
-      expect(result.first['r101'], 'Ahmad');
-      expect(result.first['r102'], '35');
+      expect(result.records.length, 1);
+      expect(result.records.first['r101'], 'Ahmad');
+      expect(result.records.first['r102'], '35');
+      expect(result.meta.length, 1);
+      expect(result.meta.first.respUuid, 'respondent-uuid-1');
+      expect(result.meta.first.questionUuid, 'q1');
     });
 
     test('handles array-type answers', () async {
@@ -111,8 +116,8 @@ void main() {
 
       final result = await reader.loadRecords(tempDir, _testTemplate());
 
-      expect(result.length, 1);
-      expect(result.first['r201'], '[1] Laki-laki');
+      expect(result.records.length, 1);
+      expect(result.records.first['r201'], '[1] Laki-laki');
     });
 
     test('silently skips malformed data.json files', () async {
@@ -121,7 +126,7 @@ void main() {
       File('${respDir.path}/data.json').writeAsStringSync('not valid json');
 
       final result = await reader.loadRecords(tempDir, _testTemplate());
-      expect(result, isEmpty);
+      expect(result.records, isEmpty);
     });
 
     test('silently skips data.json without answers key', () async {
@@ -131,7 +136,7 @@ void main() {
           .writeAsStringSync(jsonEncode({'other': 'data'}));
 
       final result = await reader.loadRecords(tempDir, _testTemplate());
-      expect(result, isEmpty);
+      expect(result.records, isEmpty);
     });
   });
 }

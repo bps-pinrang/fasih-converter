@@ -82,7 +82,7 @@ class FasihBackupWriter {
     FasihTemplate template,
     List<FasihRecord> records,
   ) {
-    final sheet = workbook.worksheets.innerList.first as xlsio.Worksheet;
+    final sheet = workbook.worksheets.innerList.first;
     sheet.name = template.dataKey;
 
     // Header row
@@ -116,9 +116,9 @@ class FasihBackupWriter {
     sheet.getRangeByIndex(2, 1).setText('template_uuid');
     sheet.getRangeByIndex(2, 2).setText(template.id);
 
-    // Row 3: template_json (placeholder — rawJson added in Task 3)
+    // Row 3: template_json
     sheet.getRangeByIndex(3, 1).setText('template_json');
-    sheet.getRangeByIndex(3, 2).setText('');
+    sheet.getRangeByIndex(3, 2).setText(template.rawJson);
 
     // Row 4: env_json
     sheet.getRangeByIndex(4, 1).setText('env_json');

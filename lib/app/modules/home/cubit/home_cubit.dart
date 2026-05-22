@@ -107,11 +107,13 @@ class HomeCubit extends Cubit<HomeState> {
 
   Future<void> _loadTemplate(PlatformFile file, FasihTemplate template) async {
     try {
-      final records = await _reader.loadRecords(_extractedDir!, template);
+      final result = await _reader.loadRecords(_extractedDir!, template);
       emit(HomeFileLoaded(
         file: file,
         template: template,
-        records: records,
+        records: result.records,
+        respondentMeta: result.meta,
+        envJson: result.envJson,
       ));
     } catch (e) {
       _sideEffectsController.add(ShowSnackbar(
