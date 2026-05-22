@@ -63,7 +63,7 @@ class HomeView extends GetView<HomeController> {
       radius: const Radius.circular(12),
       child: Material(
         elevation: 0,
-        color: const Color(0xFFDEDEDE).withOpacity(0.2),
+        color: const Color(0xFFDEDEDE).withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -244,7 +244,7 @@ class HomeView extends GetView<HomeController> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.blueGrey.withOpacity(0.2),
+              color: Colors.blueGrey.withValues(alpha: 0.2),
               spreadRadius: 4,
               offset: const Offset(0, 8),
               blurRadius: 10,
