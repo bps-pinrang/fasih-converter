@@ -5,6 +5,7 @@ import 'package:json_converter/app/data/models/fasih_template.dart';
 import 'package:json_converter/app/data/providers/fasih_converter_sheet_api.dart';
 import 'package:json_converter/app/data/repositories/settings_repository.dart';
 import 'package:json_converter/app/data/services/fasih_backup_reader.dart';
+import 'package:json_converter/app/data/services/fasih_backup_writer.dart';
 import 'package:json_converter/app/modules/home/cubit/home_cubit.dart';
 import 'package:json_converter/app/modules/home/cubit/home_state.dart';
 import 'package:mocktail/mocktail.dart';
@@ -15,6 +16,8 @@ class MockSettingsRepository extends Mock implements SettingsRepository {}
 
 class MockFasihConverterSheetApi extends Mock
     implements FasihConverterSheetApi {}
+
+class MockFasihBackupWriter extends Mock implements FasihBackupWriter {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -38,14 +41,16 @@ void main() {
   late MockFasihBackupReader reader;
   late MockSettingsRepository settings;
   late MockFasihConverterSheetApi sheetApi;
+  late MockFasihBackupWriter writer;
 
   setUp(() {
     reader = MockFasihBackupReader();
     settings = MockSettingsRepository();
     sheetApi = MockFasihConverterSheetApi();
+    writer = MockFasihBackupWriter();
   });
 
-  HomeCubit buildCubit() => HomeCubit(reader, settings, sheetApi);
+  HomeCubit buildCubit() => HomeCubit(reader, settings, sheetApi, writer);
 
   test('initial state is HomeInitial', () {
     expect(buildCubit().state, isA<HomeInitial>());

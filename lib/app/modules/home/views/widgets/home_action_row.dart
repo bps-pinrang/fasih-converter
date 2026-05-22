@@ -97,6 +97,34 @@ class HomeActionRow extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: hasData && !loaded.isImporting
+                        ? cubit.importFromExcel
+                        : null,
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade400,
+                      foregroundColor: Colors.white,
+                      side: BorderSide.none,
+                    ),
+                    icon: (loaded?.isImporting ?? false)
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.upload_file_outlined, size: 18),
+                    label: const Text('Import Excel → Backup'),
+                  ),
+                ),
+              ],
+            ),
           ],
         );
       },

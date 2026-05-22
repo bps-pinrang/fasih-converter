@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../data/models/fasih_template.dart';
 import '../../../data/providers/fasih_converter_sheet_api.dart';
 import '../../../data/repositories/settings_repository.dart';
 import '../../../data/services/fasih_backup_reader.dart';
+import '../../../data/services/fasih_backup_writer.dart';
 import '../../../di/injection.dart';
 import '../../../router/app_router.dart';
 import '../cubit/home_cubit.dart';
@@ -36,6 +38,7 @@ class _HomeViewState extends State<HomeView> {
       getIt<FasihBackupReader>(),
       getIt<SettingsRepository>(),
       getIt<FasihConverterSheetApi>(),
+      getIt<FasihBackupWriter>(),
     );
     _sub = _cubit.sideEffects.listen(_handleSideEffect);
   }
@@ -72,6 +75,29 @@ class _HomeViewState extends State<HomeView> {
         );
       case ShowTemplatePicker(:final templates):
         _showTemplatePicker(templates);
+      case ShowImportSuccess(:final outputPath):
+        showDialog<void>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Backup Berhasil Dibuat!'),
+            content: Text('File disimpan di:\n$outputPath'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  SharePlus.instance.share(
+                    ShareParams(files: [XFile(outputPath)]),
+                  );
+                },
+                child: const Text('Bagikan'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Tutup'),
+              ),
+            ],
+          ),
+        );
     }
   }
 

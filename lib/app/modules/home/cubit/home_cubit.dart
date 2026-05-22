@@ -7,11 +7,11 @@ import 'package:json_converter/app/data/models/fasih_template.dart';
 import 'package:json_converter/app/data/providers/fasih_converter_sheet_api.dart';
 import 'package:json_converter/app/data/repositories/settings_repository.dart';
 import 'package:json_converter/app/data/services/fasih_backup_reader.dart';
+import 'package:json_converter/app/data/services/fasih_backup_writer.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:permission_handler/permission_handler.dart' as perm;
 import 'package:share_plus/share_plus.dart';
-import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xlsio;
 
 import '../../../data/core/utils/helpers.dart';
 import 'home_side_effect.dart';
@@ -21,6 +21,7 @@ class HomeCubit extends Cubit<HomeState> {
   final FasihBackupReader _reader;
   final SettingsRepository _settings;
   final FasihConverterSheetApi _sheetApi;
+  final FasihBackupWriter _writer;
 
   final _sideEffectsController = StreamController<HomeSideEffect>.broadcast();
   Stream<HomeSideEffect> get sideEffects => _sideEffectsController.stream;
@@ -28,7 +29,7 @@ class HomeCubit extends Cubit<HomeState> {
   String appVersion = '';
   Directory? _extractedDir;
 
-  HomeCubit(this._reader, this._settings, this._sheetApi)
+  HomeCubit(this._reader, this._settings, this._sheetApi, this._writer)
       : super(const HomeInitial()) {
     _init();
   }
@@ -131,21 +132,12 @@ class HomeCubit extends Cubit<HomeState> {
 
     emit(current.copyWith(isExporting: true));
     try {
-      final template = current.template;
-      final headers = template.fields.map((f) => f.dataKey).toList();
-      final labels = template.fields.map((f) => f.label).toList();
-
-      final workbook = xlsio.Workbook();
-      final sheet = workbook.worksheets.innerList.first;
-      sheet.name = template.dataKey.length > 31
-          ? template.dataKey.substring(0, 31)
-          : template.dataKey;
-
-      sheet.importList(labels, 1, 1, false);
-      for (var i = 0; i < current.records.length; i++) {
-        final row = headers.map((h) => current.records[i][h]).toList();
-        sheet.importList(row, i + 2, 1, false);
-      }
+      final workbook = _writer.buildWorkbook(
+        template: current.template,
+        records: current.records,
+        respondentMeta: current.respondentMeta,
+        envJson: current.envJson,
+      );
 
       final bytes = workbook.saveAsStream();
       workbook.dispose();
@@ -168,6 +160,57 @@ class HomeCubit extends Cubit<HomeState> {
     } finally {
       if (state is HomeFileLoaded) {
         emit((state as HomeFileLoaded).copyWith(isExporting: false));
+      }
+    }
+  }
+
+  Future<void> importFromExcel() async {
+    final current = state;
+    if (current is! HomeFileLoaded) {
+      _sideEffectsController.add(const ShowSnackbar(
+        title: 'Gagal',
+        message: 'Muat backup terlebih dahulu sebelum mengimpor Excel.',
+      ));
+      return;
+    }
+
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['xlsx'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final path = result.files.first.path;
+    if (path == null) return;
+
+    emit(current.copyWith(isImporting: true));
+    try {
+      final workbook = _writer.buildWorkbook(
+        template: current.template,
+        records: current.records,
+        respondentMeta: current.respondentMeta,
+        envJson: current.envJson,
+      );
+
+      final outputName =
+          '${p.basenameWithoutExtension(result.files.first.name)}_edited';
+      final outFile = await _writer.buildBackupZip(
+        workbook: workbook,
+        template: current.template,
+        editedRecords: current.records,
+        outputName: outputName,
+      );
+      workbook.dispose();
+
+      _sideEffectsController.add(ShowImportSuccess(outFile.path));
+    } catch (e) {
+      _sideEffectsController.add(ShowSnackbar(
+        title: 'Gagal Import',
+        message: e.toString(),
+        isError: true,
+      ));
+    } finally {
+      if (state is HomeFileLoaded) {
+        emit((state as HomeFileLoaded).copyWith(isImporting: false));
       }
     }
   }
