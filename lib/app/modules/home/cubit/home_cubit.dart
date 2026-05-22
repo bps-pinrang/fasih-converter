@@ -184,7 +184,9 @@ class HomeCubit extends Cubit<HomeState> {
       ));
       return;
     }
-    await Share.shareXFiles([XFile(file.path)], text: fileName);
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(file.path)], text: fileName),
+    );
   }
 
   Future<void> uploadToSheets() async {
