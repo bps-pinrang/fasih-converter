@@ -186,15 +186,25 @@ class FasihBackupWriter {
     final tempDir = await Directory.systemTemp.createTemp('fasih_export_');
 
     try {
-      // Reconstruct FASIH directory structure from metadata rows (row 7+)
-      // Row layout: col A = respUuid, col B = questionUuid, col C = rawDataJson
+      // Row layout: col A = respUuid, col B = relPath, col C+ = rawDataJson chunks.
+      // Large JSON values are split across columns to stay under Excel's 32767-char
+      // cell limit. Chunks are joined by reading cols 3, 4, 5, ... until empty.
       var row = 7;
       while (true) {
         final respUuid = metaSheet.getRangeByIndex(row, 1).getText() ?? '';
         if (respUuid.isEmpty) break;
         final answersRelPath =
             metaSheet.getRangeByIndex(row, 2).getText() ?? '';
-        final rawDataJson = metaSheet.getRangeByIndex(row, 3).getText() ?? '{}';
+
+        final buf = StringBuffer();
+        var col = 3;
+        while (true) {
+          final chunk = metaSheet.getRangeByIndex(row, col).getText() ?? '';
+          if (chunk.isEmpty) break;
+          buf.write(chunk);
+          col++;
+        }
+        final rawDataJson = buf.isEmpty ? '{}' : buf.toString();
 
         final dataDir = Directory(
           p.join(
@@ -263,13 +273,13 @@ class FasihBackupWriter {
     sheet.getRangeByIndex(2, 1).setText('template_uuid');
     sheet.getRangeByIndex(2, 2).setText(template.id);
 
-    // Row 3: template_json
+    // Row 3: template_json (chunked across cols 2+ to stay under Excel's limit)
     sheet.getRangeByIndex(3, 1).setText('template_json');
-    sheet.getRangeByIndex(3, 2).setText(template.rawJson);
+    _writeChunked(sheet, 3, 2, template.rawJson);
 
-    // Row 4: env_json
+    // Row 4: env_json (chunked across cols 2+)
     sheet.getRangeByIndex(4, 1).setText('env_json');
-    sheet.getRangeByIndex(4, 2).setText(envJson.isEmpty ? '{}' : envJson);
+    _writeChunked(sheet, 4, 2, envJson.isEmpty ? '{}' : envJson);
 
     // Row 5: blank separator
 
@@ -278,16 +288,38 @@ class FasihBackupWriter {
     sheet.getRangeByIndex(6, 2).setText('answers_rel_path');
     sheet.getRangeByIndex(6, 3).setText('raw_data_json');
 
-    // Row 7+: one row per respondent
-    for (var i = 0; i < respondentMeta.length; i++) {
-      final m = respondentMeta[i];
-      sheet.getRangeByIndex(7 + i, 1).setText(m.respUuid);
-      sheet.getRangeByIndex(7 + i, 2).setText(m.answersRelPath);
-      sheet.getRangeByIndex(7 + i, 3).setText(m.rawDataJson);
+    // Row 7+: one row per respondent; rawDataJson chunked across cols 3+
+    var row = 7;
+    for (final m in respondentMeta) {
+      sheet.getRangeByIndex(row, 1).setText(m.respUuid);
+      sheet.getRangeByIndex(row, 2).setText(m.answersRelPath);
+      _writeChunked(sheet, row, 3, m.rawDataJson);
+      row++;
     }
 
     sheet.protect(AppEnv.fasihZipPassword);
   }
+
+  /// Writes [value] into consecutive columns starting at [startCol] on [row],
+  /// splitting into chunks of [_maxCellChars] to stay under Excel's 32767-char
+  /// cell limit.
+  static void _writeChunked(
+    xlsio.Worksheet sheet,
+    int row,
+    int startCol,
+    String value,
+  ) {
+    var col = startCol;
+    var offset = 0;
+    while (offset < value.length) {
+      final end = (offset + _maxCellChars).clamp(0, value.length);
+      sheet.getRangeByIndex(row, col).setText(value.substring(offset, end));
+      offset = end;
+      col++;
+    }
+  }
+
+  static const _maxCellChars = 30000;
 
   Future<File> _resolveOutputFile(String name) async {
     final String dirPath;
