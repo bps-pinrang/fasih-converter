@@ -71,5 +71,6 @@ windows/
 linux/
 web/
 
-# Release keystore — never commit
+# Release signing — never commit
 android/app/release.jks
+android/key.properties
