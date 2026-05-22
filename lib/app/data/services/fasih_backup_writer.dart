@@ -89,7 +89,8 @@ class FasihBackupWriter {
     List<FasihRecord> records,
   ) {
     final sheet = workbook.worksheets.innerList.first;
-    sheet.name = template.dataKey;
+    final name = template.dataKey;
+    sheet.name = name.length > 31 ? name.substring(0, 31) : name;
 
     // Header row
     for (var i = 0; i < template.fields.length; i++) {
