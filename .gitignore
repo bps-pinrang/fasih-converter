@@ -48,6 +48,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# envied
+.env
+lib/app/data/core/env/app_env.g.dart
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db
