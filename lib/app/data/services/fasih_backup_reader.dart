@@ -51,20 +51,15 @@ class FasihBackupReader {
     Directory backupDir,
     FasihTemplate template,
   ) async {
-    final fieldIndex = {
-      for (var i = 0; i < template.fields.length; i++)
-        template.fields[i].dataKey: i,
-    };
-
     final records = <FasihRecord>[];
 
     await for (final entry in backupDir.list()) {
       if (entry is! Directory) continue;
       if (_skipDirs.contains(p.basename(entry.path))) continue;
 
-      final dataFiles = await _findDataFiles(entry, template.id);
+      final dataFiles = await _findDataFiles(entry);
       for (final dataFile in dataFiles) {
-        final record = await _parseDataFile(dataFile, fieldIndex);
+        final record = await _parseDataFile(dataFile);
         if (record != null) records.add(record);
       }
     }
@@ -72,7 +67,7 @@ class FasihBackupReader {
     return records;
   }
 
-  Future<List<File>> _findDataFiles(Directory dir, String templateId) async {
+  Future<List<File>> _findDataFiles(Directory dir) async {
     final results = <File>[];
     await for (final entity in dir.list(recursive: true)) {
       if (entity is! File || p.basename(entity.path) != 'data.json') continue;
@@ -81,10 +76,7 @@ class FasihBackupReader {
     return results;
   }
 
-  Future<FasihRecord?> _parseDataFile(
-    File file,
-    Map<String, int> fieldIndex,
-  ) async {
+  Future<FasihRecord?> _parseDataFile(File file) async {
     try {
       final raw = await file.readAsString();
       final map = jsonDecode(raw) as Map<String, dynamic>;
