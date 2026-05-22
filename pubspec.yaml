@@ -40,7 +40,6 @@ dev_dependencies:
 flutter:
   assets:
     - assets/launchers/
-    - assets/credentials/
   uses-material-design: true
 
 flutter_app_name:
