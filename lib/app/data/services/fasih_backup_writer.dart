@@ -55,17 +55,17 @@ class FasihBackupWriter {
     return _patchXlsx(raw);
   }
 
-  /// Post-processes the raw bytes from Syncfusion xlsio to inject a minimal
-  /// theme file. Without this, Excel reports a repair warning because
-  /// workbook.xml declares defaultThemeVersion but no theme file is present.
+  /// Post-processes the raw XLSX bytes from Syncfusion xlsio to fix two issues:
+  /// 1. Missing xl/theme/theme1.xml (causes Excel "repair" prompt).
+  /// 2. t-elements in sharedStrings.xml without xml:space="preserve" on
+  ///    strings with leading/trailing whitespace (causes string corruption).
   List<int> _patchXlsx(List<int> bytes) {
     final archive = ZipDecoder().decodeBytes(bytes);
-    var hasTheme = archive.any((f) => f.name == 'xl/theme/theme1.xml');
-    if (hasTheme) return bytes;
+    final hasTheme = archive.any((f) => f.name == 'xl/theme/theme1.xml');
 
     final patched = Archive();
     for (final file in archive) {
-      if (file.name == '[Content_Types].xml') {
+      if (!hasTheme && file.name == '[Content_Types].xml') {
         final content = utf8.decode(file.content as List<int>);
         final updated = content.replaceFirst(
           '</Types>',
@@ -75,7 +75,7 @@ class FasihBackupWriter {
         );
         final data = utf8.encode(updated);
         patched.addFile(ArchiveFile('[Content_Types].xml', data.length, data));
-      } else if (file.name == 'xl/_rels/workbook.xml.rels') {
+      } else if (!hasTheme && file.name == 'xl/_rels/workbook.xml.rels') {
         final content = utf8.decode(file.content as List<int>);
         final updated = content.replaceFirst(
           '</Relationships>',
@@ -88,15 +88,28 @@ class FasihBackupWriter {
         patched.addFile(
           ArchiveFile('xl/_rels/workbook.xml.rels', data.length, data),
         );
+      } else if (file.name == 'xl/sharedStrings.xml') {
+        // OOXML requires xml:space="preserve" on <t> elements whose text has
+        // leading or trailing whitespace. Syncfusion never adds it, so Excel
+        // strips the whitespace and reports a repair. Adding it to every <t>
+        // is safe — parsers ignore it when the content has no whitespace.
+        final content = utf8.decode(file.content as List<int>);
+        final updated = content.replaceAll('<t>', '<t xml:space="preserve">');
+        final data = utf8.encode(updated);
+        patched.addFile(
+          ArchiveFile('xl/sharedStrings.xml', data.length, data),
+        );
       } else {
         patched.addFile(file);
       }
     }
 
-    final themeData = utf8.encode(_minimalThemeXml);
-    patched.addFile(
-      ArchiveFile('xl/theme/theme1.xml', themeData.length, themeData),
-    );
+    if (!hasTheme) {
+      final themeData = utf8.encode(_minimalThemeXml);
+      patched.addFile(
+        ArchiveFile('xl/theme/theme1.xml', themeData.length, themeData),
+      );
+    }
 
     return ZipEncoder().encode(patched);
   }

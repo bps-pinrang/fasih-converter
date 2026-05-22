@@ -146,9 +146,10 @@ class FasihBackupReader {
       }
     }
 
-    // Second pass: process each respondent and report progress.
-    for (var i = 0; i < tasks.length; i++) {
-      final t = tasks[i];
+    // Second pass: process each task, firing onProgress after every record.
+    // We don't know the total upfront (some data.json files fail validation),
+    // so total is reported as 0 (indeterminate) and the UI shows a count.
+    for (final t in tasks) {
       await _loadRespondent(
         respUuid: t.respUuid,
         searchDir: t.searchDir,
@@ -156,8 +157,9 @@ class FasihBackupReader {
         template: template,
         records: records,
         meta: meta,
+        onRecordAdded:
+            onProgress != null ? () => onProgress(records.length, 0) : null,
       );
-      onProgress?.call(i + 1, tasks.length);
     }
 
     final envFile = File(
@@ -192,6 +194,7 @@ class FasihBackupReader {
     required FasihTemplate template,
     required List<FasihRecord> records,
     required List<RespondentMeta> meta,
+    void Function()? onRecordAdded,
   }) async {
     final fieldKeys = template.fields.map((f) => f.dataKey).toSet();
     await for (final entity in searchDir.list(recursive: true)) {
@@ -213,6 +216,7 @@ class FasihBackupReader {
           rawDataJson: rawJson,
         ),
       );
+      onRecordAdded?.call();
     }
   }
 
