@@ -10,7 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 Future<String> createExportDir(String folderName) async {
   Directory dir;
   if (Platform.isAndroid) {
-    dir = Directory('storage/emulated/0/Fasih Converter/$folderName');
+    dir = Directory('/storage/emulated/0/Fasih Converter/$folderName');
     final storageStatus = await Permission.manageExternalStorage.status;
     if (!storageStatus.isGranted) {
       await Permission.manageExternalStorage.request();
@@ -31,7 +31,7 @@ Future<void> showLoadingDialog({String? label, RxDouble? progress}) async {
     Get.back();
   }
 
-  return Get.defaultDialog(
+  return await Get.defaultDialog(
     title: 'Mohon Tunggu',
     titleStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
     barrierDismissible: false,
