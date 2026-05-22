@@ -260,17 +260,12 @@ class HomeCubit extends Cubit<HomeState> {
       final respondentMeta = current.respondentMeta;
       final envJson = current.envJson;
 
-      final bytes = await Isolate.run(() {
-        final wb = FasihBackupWriter().buildWorkbook(
-          template: template,
-          records: records,
-          respondentMeta: respondentMeta,
-          envJson: envJson,
-        );
-        final b = wb.saveAsStream();
-        wb.dispose();
-        return b;
-      });
+      final bytes = await Isolate.run(() => FasihBackupWriter().buildBytes(
+            template: template,
+            records: records,
+            respondentMeta: respondentMeta,
+            envJson: envJson,
+          ));
 
       final dir = await createExportDir('Export');
       final fileName = '${_safeFileName(current.template.dataKey)}.xlsx';
