@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_archive/flutter_archive.dart';
+import 'package:injectable/injectable.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -9,6 +10,7 @@ import '../core/values/strings.dart';
 import '../models/fasih_record.dart';
 import '../models/fasih_template.dart';
 
+@singleton
 class FasihBackupReader {
   static const _skipDirs = {
     'Template',

@@ -1,38 +1,43 @@
 import 'package:gsheets/gsheets.dart';
+import 'package:injectable/injectable.dart';
 import 'package:json_converter/app/data/repositories/settings_repository.dart';
 
+@singleton
 class FasihConverterSheetApi {
-  static GSheets? _gSheets;
-  static Worksheet? _sheet;
+  final SettingsRepository _settings;
 
-  static Future<void> init(String sheetTitle) async {
-    final repo = SettingsRepository.instance;
-    final credentials = repo.credentialsJson;
-    final sheetId = repo.sheetId;
+  FasihConverterSheetApi(this._settings);
 
-    if (credentials == null || sheetId == null) {
-      throw Exception(
-        'Google Sheets belum dikonfigurasi.\nBuka Pengaturan terlebih dahulu.',
-      );
-    }
+  GSheets? _gsheets;
+  Spreadsheet? _spreadsheet;
+  Worksheet? _worksheet;
 
-    _gSheets = GSheets(credentials);
-    final spreadsheet = await _gSheets!.spreadsheet(sheetId);
-    _sheet = spreadsheet.worksheetByTitle(sheetTitle) ??
-        await spreadsheet.addWorksheet(sheetTitle);
+  Future<void> init(String sheetTitle) async {
+    final creds = _settings.credentialsJson!;
+    final sheetId = _settings.sheetId!;
+    _gsheets = GSheets(creds);
+    _spreadsheet = await _gsheets!.spreadsheet(sheetId);
+    _worksheet = _spreadsheet!.worksheetByTitle(sheetTitle) ??
+        await _spreadsheet!.addWorksheet(sheetTitle);
   }
 
-  static Future<void> appendRows(
+  Future<void> appendRows(
     List<Map<String, dynamic>> rows,
     List<String> headers,
   ) async {
-    if (_sheet == null) throw Exception('Sheet belum diinisialisasi.');
-    await _sheet!.values.insertRow(1, headers);
-    await _sheet!.values.map.appendRows(rows);
+    if (_worksheet == null) throw StateError('Not initialized');
+    final existing = await _worksheet!.values.allRows();
+    if (existing.isEmpty) {
+      await _worksheet!.values.insertRow(1, headers);
+    }
+    final serialized =
+        rows.map((r) => headers.map((h) => '${r[h] ?? ''}').toList()).toList();
+    await _worksheet!.values.appendRows(serialized);
   }
 
-  static void dispose() {
-    _sheet = null;
-    _gSheets = null;
+  void dispose() {
+    _gsheets = null;
+    _spreadsheet = null;
+    _worksheet = null;
   }
 }
