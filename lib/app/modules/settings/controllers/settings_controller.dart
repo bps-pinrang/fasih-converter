@@ -36,7 +36,9 @@ class SettingsController extends GetxController {
 
     if (result == null || result.files.isEmpty) return;
 
-    final file = File(result.files.first.path!);
+    final path = result.files.first.path;
+    if (path == null) return;
+    final file = File(path);
     final content = await file.readAsString();
     final repo = SettingsRepository.instance;
 
