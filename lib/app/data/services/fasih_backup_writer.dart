@@ -183,28 +183,42 @@ class FasihBackupWriter {
     required String outputName,
   }) async {
     final metaSheet = workbook.worksheets[1];
+    final dataSheet = workbook.worksheets[0];
     final tempDir = await Directory.systemTemp.createTemp('fasih_export_');
 
     try {
-      // Row layout: col A = respUuid, col B = relPath, col C+ = rawDataJson chunks.
-      // Large JSON values are split across columns to stay under Excel's 32767-char
-      // cell limit. Chunks are joined by reading cols 3, 4, 5, ... until empty.
-      var row = 7;
+      // meta rows start at 7; data rows start at 2 (row 1 is header).
+      // Each meta row corresponds to data row at offset +(-5).
+      var metaRow = 7;
+      var dataRow = 2;
       while (true) {
-        final respUuid = metaSheet.getRangeByIndex(row, 1).getText() ?? '';
+        final respUuid = metaSheet.getRangeByIndex(metaRow, 1).getText() ?? '';
         if (respUuid.isEmpty) break;
         final answersRelPath =
-            metaSheet.getRangeByIndex(row, 2).getText() ?? '';
+            metaSheet.getRangeByIndex(metaRow, 2).getText() ?? '';
 
-        final buf = StringBuffer();
-        var col = 3;
-        while (true) {
-          final chunk = metaSheet.getRangeByIndex(row, col).getText() ?? '';
-          if (chunk.isEmpty) break;
-          buf.write(chunk);
-          col++;
+        // Envelope JSON stored in col C (answers stripped on import).
+        final envelopeJson = _readChunked(metaSheet, metaRow, 3);
+
+        // Rebuild answers from the data sheet so edits are preserved.
+        final answers = <Map<String, dynamic>>[];
+        for (var c = 0; c < template.fields.length; c++) {
+          final field = template.fields[c];
+          final cellValue =
+              dataSheet.getRangeByIndex(dataRow, c + 1).getText() ?? '';
+          answers.add({
+            'dataKey': field.dataKey,
+            'answer': reconstructAnswerValue(cellValue),
+          });
         }
-        final rawDataJson = buf.isEmpty ? '{}' : buf.toString();
+
+        Map<String, dynamic> dataJson;
+        try {
+          dataJson = jsonDecode(envelopeJson) as Map<String, dynamic>;
+        } catch (_) {
+          dataJson = <String, dynamic>{};
+        }
+        dataJson['answers'] = answers;
 
         final dataDir = Directory(
           p.join(
@@ -216,9 +230,10 @@ class FasihBackupWriter {
         );
         await dataDir.create(recursive: true);
         await File(p.join(dataDir.path, 'data.json'))
-            .writeAsString(rawDataJson);
+            .writeAsString(jsonEncode(dataJson));
 
-        row++;
+        metaRow++;
+        dataRow++;
       }
 
       final outputFile = await _resolveOutputFile(outputName);
@@ -320,6 +335,37 @@ class FasihBackupWriter {
   }
 
   static const _maxCellChars = 30000;
+
+  /// Reads consecutive columns starting at [startCol] and joins them.
+  static String _readChunked(xlsio.Worksheet sheet, int row, int startCol) {
+    final buf = StringBuffer();
+    var col = startCol;
+    while (true) {
+      final chunk = sheet.getRangeByIndex(row, col).getText() ?? '';
+      if (chunk.isEmpty) break;
+      buf.write(chunk);
+      col++;
+    }
+    return buf.toString();
+  }
+
+  /// Coerces a display string back to the FASIH answer shape.
+  ///
+  /// Strings matching the "[value] label; [value] label" pattern produced by
+  /// [FasihRecord.extractAnswer] are reconstructed as a list of
+  /// `{value, label}` maps. Everything else is returned as-is.
+  static dynamic reconstructAnswerValue(String cellValue) {
+    if (cellValue.isEmpty) return '';
+    final parts = cellValue.split('; ');
+    final pattern = RegExp(r'^\[(.+?)\] (.*)$');
+    if (parts.every((part) => pattern.hasMatch(part))) {
+      return parts.map((part) {
+        final m = pattern.firstMatch(part)!;
+        return <String, dynamic>{'value': m.group(1), 'label': m.group(2)};
+      }).toList();
+    }
+    return cellValue;
+  }
 
   Future<File> _resolveOutputFile(String name) async {
     final String dirPath;

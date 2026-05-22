@@ -201,19 +201,23 @@ class FasihBackupReader {
       if (entity is! File || p.basename(entity.path) != 'data.json') continue;
       final relPath = p.relative(entity.parent.path, from: answersBaseDir.path);
       final rawJson = await entity.readAsString();
-      final parsed = await _parseDataFile(
-        entity,
+      final map = await _decodeJson(rawJson);
+      if (map == null) continue;
+      final parsed = _recordFromMap(
+        map,
         templateId: template.id,
         templateDataKey: template.dataKey,
         fieldKeys: fieldKeys,
       );
       if (parsed == null) continue;
       records.add(parsed);
+      // Store envelope only (no answers) — answers are in the data sheet.
+      final envelope = Map<String, dynamic>.from(map)..remove(kColumnAnswers);
       meta.add(
         RespondentMeta(
           respUuid: respUuid,
           answersRelPath: relPath,
-          rawDataJson: rawJson,
+          rawDataJson: jsonEncode(envelope),
         ),
       );
       onRecordAdded?.call();
@@ -236,17 +240,13 @@ class FasihBackupReader {
     }
   }
 
-  Future<FasihRecord?> _parseDataFile(
-    File file, {
+  FasihRecord? _recordFromMap(
+    Map<String, dynamic> map, {
     String? templateId,
     String? templateDataKey,
     Set<String>? fieldKeys,
-  }) async {
+  }) {
     try {
-      final raw = await file.readAsString();
-      final map = await _decodeJson(raw);
-      if (map == null) return null;
-
       // Reject if the file declares a templateId/dataKey that does not match.
       // Files with neither field present are accepted (legacy backups).
       final fileTemplateId = map[kColumnTemplateId] as String?;
