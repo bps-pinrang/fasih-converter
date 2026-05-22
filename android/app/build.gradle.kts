@@ -1,7 +1,16 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val keyProps = Properties()
+val keyPropsFile = rootProject.file("key.properties")
+if (keyPropsFile.exists()) {
+    keyPropsFile.inputStream().use { keyProps.load(it) }
 }
 
 android {
@@ -20,10 +29,10 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = System.getenv("KEY_ALIAS") ?: ""
-            keyPassword = System.getenv("KEY_PASSWORD") ?: ""
-            storeFile = file("release.jks")
-            storePassword = System.getenv("STORE_PASSWORD") ?: ""
+            keyAlias = keyProps.getProperty("keyAlias") ?: System.getenv("KEY_ALIAS") ?: ""
+            keyPassword = keyProps.getProperty("keyPassword") ?: System.getenv("KEY_PASSWORD") ?: ""
+            storeFile = file(keyProps.getProperty("storeFile") ?: "release.jks")
+            storePassword = keyProps.getProperty("storePassword") ?: System.getenv("STORE_PASSWORD") ?: ""
         }
     }
 
