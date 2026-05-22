@@ -51,6 +51,16 @@ android {
             isShrinkResources = false
         }
     }
+
+    applicationVariants.all {
+        val variant = this
+        outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            if (variant.buildType.name == "release") {
+                output.outputFileName = "FasihConverter-v${variant.versionName}-release.apk"
+            }
+        }
+    }
 }
 
 flutter {
