@@ -57,7 +57,10 @@ android {
         outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
             if (variant.buildType.name == "release") {
-                output.outputFileName = "FasihConverter-v${variant.versionName}-release.apk"
+                val abi = output.getFilter(com.android.build.OutputFile.ABI)
+                val abiSuffix = if (abi != null) "-$abi" else ""
+                output.outputFileName =
+                    "FasihConverter-v${variant.versionName}$abiSuffix-release.apk"
             }
         }
     }
