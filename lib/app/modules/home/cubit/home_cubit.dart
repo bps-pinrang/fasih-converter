@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:json_converter/app/data/models/backup_history_entry.dart';
 import 'package:json_converter/app/data/models/fasih_template.dart';
 import 'package:json_converter/app/data/providers/fasih_converter_sheet_api.dart';
 import 'package:json_converter/app/data/repositories/settings_repository.dart';
@@ -28,6 +29,10 @@ class HomeCubit extends Cubit<HomeState> {
 
   String appVersion = '';
   Directory? _extractedDir;
+  Directory? get extractedDir => _extractedDir;
+
+  List<FasihTemplate> _availableTemplates = [];
+  List<FasihTemplate> get availableTemplates => _availableTemplates;
 
   HomeCubit(this._reader, this._settings, this._sheetApi, this._writer)
       : super(const HomeInitial()) {
@@ -37,6 +42,49 @@ class HomeCubit extends Cubit<HomeState> {
   Future<void> _init() async {
     final info = await PackageInfo.fromPlatform();
     appVersion = 'v${info.version}';
+    await _tryRestoreLastSession();
+  }
+
+  Future<void> _tryRestoreLastSession() async {
+    final dirPath = _settings.lastExtractedDirPath;
+    final templateId = _settings.lastTemplateId;
+    if (dirPath == null || templateId == null) return;
+
+    final dir = Directory(dirPath);
+    if (!await dir.exists()) {
+      await _settings.clearLastSession();
+      return;
+    }
+
+    emit(const HomeLoadingFile());
+    try {
+      _extractedDir = dir;
+      _availableTemplates = await _reader.discoverTemplates(dir);
+      final template =
+          _availableTemplates.where((t) => t.id == templateId).firstOrNull;
+      if (template == null) {
+        _extractedDir = null;
+        await _settings.clearLastSession();
+        emit(const HomeInitial());
+        return;
+      }
+      final result = await _reader.loadRecords(dir, template);
+      emit(HomeFileLoaded(
+        file: PlatformFile(
+          name: _settings.lastZipName ?? 'backup.zip',
+          size: _settings.lastZipSize,
+        ),
+        template: template,
+        records: result.records,
+        respondentMeta: result.meta,
+        envJson: result.envJson,
+      ));
+    } catch (_) {
+      _extractedDir = null;
+      _availableTemplates = [];
+      await _settings.clearLastSession();
+      emit(const HomeInitial());
+    }
   }
 
   Future<void> pickAndLoadBackup() async {
@@ -71,9 +119,9 @@ class HomeCubit extends Cubit<HomeState> {
 
       final file = result.files.first;
       _extractedDir = await _reader.extractZip(File(path));
-      final templates = await _reader.discoverTemplates(_extractedDir!);
+      _availableTemplates = await _reader.discoverTemplates(_extractedDir!);
 
-      if (templates.isEmpty) {
+      if (_availableTemplates.isEmpty) {
         _sideEffectsController.add(const ShowSnackbar(
           title: 'Template Tidak Ditemukan',
           message:
@@ -83,11 +131,11 @@ class HomeCubit extends Cubit<HomeState> {
         return;
       }
 
-      if (templates.length == 1) {
-        await _loadTemplate(file, templates.first);
+      if (_availableTemplates.length == 1) {
+        await _loadTemplate(file, _availableTemplates.first);
       } else {
-        emit(HomeMultiTemplate(file: file, templates: templates));
-        _sideEffectsController.add(ShowTemplatePicker(templates));
+        emit(HomeMultiTemplate(file: file, templates: _availableTemplates));
+        _sideEffectsController.add(ShowTemplatePicker(_availableTemplates));
       }
     } catch (e) {
       _sideEffectsController.add(ShowSnackbar(
@@ -101,9 +149,19 @@ class HomeCubit extends Cubit<HomeState> {
 
   Future<void> selectTemplate(FasihTemplate template) async {
     final current = state;
-    if (current is! HomeMultiTemplate) return;
+    final file = switch (current) {
+      HomeMultiTemplate(:final file) => file,
+      HomeFileLoaded(:final file) => file,
+      _ => null,
+    };
+    if (file == null) return;
     emit(const HomeLoadingFile());
-    await _loadTemplate(current.file, template);
+    await _loadTemplate(file, template);
+  }
+
+  void changeTemplate() {
+    if (_availableTemplates.length <= 1) return;
+    _sideEffectsController.add(ShowTemplatePicker(_availableTemplates));
   }
 
   Future<void> _loadTemplate(PlatformFile file, FasihTemplate template) async {
@@ -116,6 +174,22 @@ class HomeCubit extends Cubit<HomeState> {
         respondentMeta: result.meta,
         envJson: result.envJson,
       ));
+      await _settings.saveLastSession(
+        extractedDirPath: _extractedDir!.path,
+        templateId: template.id,
+        zipName: file.name,
+        zipSize: file.size,
+      );
+      await _settings.addToHistory(
+        BackupHistoryEntry(
+          dirPath: _extractedDir!.path,
+          templateId: template.id,
+          templateTitle: template.title,
+          zipName: file.name,
+          zipSize: file.size,
+          loadedAt: DateTime.now(),
+        ),
+      );
     } catch (e) {
       _sideEffectsController.add(ShowSnackbar(
         title: 'Kesalahan',
@@ -143,7 +217,7 @@ class HomeCubit extends Cubit<HomeState> {
       workbook.dispose();
 
       final dir = await createExportDir('Export');
-      final fileName = '${p.basenameWithoutExtension(current.file.name)}.xlsx';
+      final fileName = '${_safeFileName(current.template.dataKey)}.xlsx';
       final file = File(p.join(dir, fileName));
       await file.writeAsBytes(bytes);
 
@@ -191,8 +265,7 @@ class HomeCubit extends Cubit<HomeState> {
         envJson: current.envJson,
       );
 
-      final outputName =
-          '${p.basenameWithoutExtension(result.files.first.name)}_edited';
+      final outputName = '${_safeFileName(current.template.dataKey)}_edited';
       final outFile = await _writer.buildBackupZip(
         workbook: workbook,
         template: current.template,
@@ -220,7 +293,7 @@ class HomeCubit extends Cubit<HomeState> {
     if (current is! HomeFileLoaded) return;
 
     final dir = await createExportDir('Export');
-    final fileName = '${p.basenameWithoutExtension(current.file.name)}.xlsx';
+    final fileName = '${_safeFileName(current.template.dataKey)}.xlsx';
     final file = File(p.join(dir, fileName));
     if (!await file.exists()) {
       _sideEffectsController.add(const ShowSnackbar(
@@ -278,16 +351,73 @@ class HomeCubit extends Cubit<HomeState> {
     }
   }
 
-  void clearData() {
+  Future<void> loadFromHistory(BackupHistoryEntry entry) async {
+    final dir = Directory(entry.dirPath);
+    if (!await dir.exists()) {
+      await _settings.removeFromHistory(entry.dirPath);
+      _sideEffectsController.add(const ShowSnackbar(
+        title: 'Sesi Tidak Ditemukan',
+        message: 'Folder backup sudah tidak tersedia.',
+        isError: true,
+      ));
+      return;
+    }
+
+    emit(const HomeLoadingFile());
     _cleanup();
+
+    try {
+      _extractedDir = dir;
+      _availableTemplates = await _reader.discoverTemplates(dir);
+      final template = _availableTemplates
+          .where((t) => t.id == entry.templateId)
+          .firstOrNull;
+      if (template == null) {
+        _extractedDir = null;
+        _availableTemplates = [];
+        _sideEffectsController.add(const ShowSnackbar(
+          title: 'Template Tidak Ditemukan',
+          message: 'Template survey tidak tersedia.',
+          isError: true,
+        ));
+        emit(const HomeInitial());
+        return;
+      }
+      await _loadTemplate(
+        PlatformFile(name: entry.zipName, size: entry.zipSize),
+        template,
+      );
+    } catch (e) {
+      _extractedDir = null;
+      _availableTemplates = [];
+      emit(const HomeInitial());
+      _sideEffectsController.add(ShowSnackbar(
+        title: 'Kesalahan',
+        message: e.toString(),
+        isError: true,
+      ));
+    }
+  }
+
+  void clearData() {
+    final dir = _extractedDir;
+    _cleanup();
+    dir?.delete(recursive: true).ignore();
+    _settings.clearLastSession().ignore();
     emit(const HomeInitial());
   }
 
   void _cleanup() {
-    final dir = _extractedDir;
+    _availableTemplates = [];
     _extractedDir = null;
-    dir?.delete(recursive: true).ignore();
+    // Dirs are NOT deleted here — callers that want deletion do it explicitly.
   }
+
+  /// Strips characters unsafe for filenames, collapses spaces to underscores.
+  String _safeFileName(String name) => name
+      .trim()
+      .replaceAll(RegExp(r'[^\w\-.]'), '_')
+      .replaceAll(RegExp(r'_+'), '_');
 
   @override
   Future<void> close() {

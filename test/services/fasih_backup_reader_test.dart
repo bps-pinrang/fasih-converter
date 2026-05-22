@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:json_converter/app/data/models/fasih_template.dart';
 import 'package:json_converter/app/data/services/fasih_backup_reader.dart';
-import 'package:json_converter/app/data/models/respondent_load_result.dart';
 
 void main() {
   late Directory tempDir;
@@ -57,6 +56,44 @@ void main() {
       final result = await reader.discoverTemplates(tempDir);
       expect(result, isEmpty);
     });
+
+    test('loads validation rules when validation file exists', () async {
+      const uuid = 'val-uuid';
+      const templateJson = '''
+      {
+        "title": "Survey",
+        "dataKey": "sv",
+        "components": [[{"type": 25, "dataKey": "r101", "label": "Q1"}]]
+      }
+      ''';
+      const validationJson = '''
+      {
+        "testFunctions": [
+          {
+            "dataKey": "r101",
+            "componentValidation": ["r101"],
+            "validations": [
+              {"test": "r101 != null", "message": "Required", "type": 2}
+            ]
+          }
+        ]
+      }
+      ''';
+      final templateDir = Directory('${tempDir.path}/Template/$uuid')
+        ..createSync(recursive: true);
+      File('${templateDir.path}/${uuid}_template.json')
+          .writeAsStringSync(templateJson);
+      File('${templateDir.path}/${uuid}_validation.json')
+          .writeAsStringSync(validationJson);
+
+      final result = await reader.discoverTemplates(tempDir);
+
+      expect(result.length, 1);
+      expect(result.first.validationRules.length, 1);
+      expect(result.first.validationRules.first.dataKey, 'r101');
+      expect(result.first.validationRules.first.validations.length, 1);
+      expect(result.first.validationRules.first.validations.first.type, 2);
+    });
   });
 
   group('loadRecords', () {
@@ -74,7 +111,7 @@ void main() {
         'formengine',
         'backup',
       ]) {
-        final dir = Directory('${tempDir.path}/$skip/answers/q1')
+        final dir = Directory('${tempDir.path}/$skip/answers/q1/section1/item1')
           ..createSync(recursive: true);
         _writeDataJson(dir, [
           {'dataKey': 'r101', 'answer': 'should not appear'},
@@ -84,9 +121,10 @@ void main() {
       expect(result.records, isEmpty);
     });
 
-    test('parses respondent data.json answers', () async {
-      final respDir = Directory('${tempDir.path}/respondent-uuid-1/answers/q1')
-        ..createSync(recursive: true);
+    test('parses respondent data.json answers at 3 levels deep', () async {
+      final respDir = Directory(
+        '${tempDir.path}/respondent-uuid-1/answers/q1/section1/item1',
+      )..createSync(recursive: true);
       _writeDataJson(respDir, [
         {'dataKey': 'r101', 'answer': 'Ahmad'},
         {'dataKey': 'r102', 'answer': '35'},
@@ -99,12 +137,36 @@ void main() {
       expect(result.records.first['r102'], '35');
       expect(result.meta.length, 1);
       expect(result.meta.first.respUuid, 'respondent-uuid-1');
-      expect(result.meta.first.questionUuid, 'q1');
+      expect(result.meta.first.answersRelPath, 'q1/section1/item1');
+    });
+
+    test('merges multiple data.json files under one respondent', () async {
+      final dir1 = Directory(
+        '${tempDir.path}/respondent-uuid-2/answers/q1/section1/item1',
+      )..createSync(recursive: true);
+      _writeDataJson(dir1, [
+        {'dataKey': 'r101', 'answer': 'Budi'},
+      ]);
+
+      final dir2 = Directory(
+        '${tempDir.path}/respondent-uuid-2/answers/q2/section1/item1',
+      )..createSync(recursive: true);
+      _writeDataJson(dir2, [
+        {'dataKey': 'r102', 'answer': '40'},
+      ]);
+
+      final result = await reader.loadRecords(tempDir, _testTemplate());
+
+      expect(result.records.length, 1);
+      expect(result.records.first['r101'], 'Budi');
+      expect(result.records.first['r102'], '40');
+      expect(result.meta.length, 2);
     });
 
     test('handles array-type answers', () async {
-      final respDir = Directory('${tempDir.path}/resp-2/answers/q1')
-        ..createSync(recursive: true);
+      final respDir = Directory(
+        '${tempDir.path}/resp-2/answers/q1/section1/item1',
+      )..createSync(recursive: true);
       _writeDataJson(respDir, [
         {
           'dataKey': 'r201',
@@ -121,8 +183,9 @@ void main() {
     });
 
     test('silently skips malformed data.json files', () async {
-      final respDir = Directory('${tempDir.path}/resp-bad/answers/q1')
-        ..createSync(recursive: true);
+      final respDir = Directory(
+        '${tempDir.path}/resp-bad/answers/q1/section1/item1',
+      )..createSync(recursive: true);
       File('${respDir.path}/data.json').writeAsStringSync('not valid json');
 
       final result = await reader.loadRecords(tempDir, _testTemplate());
@@ -130,13 +193,74 @@ void main() {
     });
 
     test('silently skips data.json without answers key', () async {
-      final respDir = Directory('${tempDir.path}/resp-empty/answers/q1')
-        ..createSync(recursive: true);
+      final respDir = Directory(
+        '${tempDir.path}/resp-empty/answers/q1/section1/item1',
+      )..createSync(recursive: true);
       File('${respDir.path}/data.json')
           .writeAsStringSync(jsonEncode({'other': 'data'}));
 
       final result = await reader.loadRecords(tempDir, _testTemplate());
       expect(result.records, isEmpty);
+    });
+
+    test('session format: two respondents under one session', () async {
+      const templateId = 'test-uuid';
+      final resp1 = Directory(
+        '${tempDir.path}/session-1/answers/resp-A/assign1/section1',
+      )..createSync(recursive: true);
+      _writeDataJsonWithTemplateId(resp1, templateId, [
+        {'dataKey': 'r101', 'answer': 'Alice'},
+      ]);
+
+      final resp2 = Directory(
+        '${tempDir.path}/session-1/answers/resp-B/assign1/section1',
+      )..createSync(recursive: true);
+      _writeDataJsonWithTemplateId(resp2, templateId, [
+        {'dataKey': 'r101', 'answer': 'Bob'},
+      ]);
+
+      final result = await reader.loadRecords(tempDir, _testTemplate());
+
+      expect(result.records.length, 2);
+      final names = result.records.map((r) => r['r101']).toSet();
+      expect(names, containsAll(['Alice', 'Bob']));
+      expect(result.meta.map((m) => m.respUuid).toSet(), {'resp-A', 'resp-B'});
+    });
+
+    test('session format: filters out records with wrong templateId', () async {
+      final resp1 = Directory(
+        '${tempDir.path}/session-2/answers/resp-C/assign1/section1',
+      )..createSync(recursive: true);
+      _writeDataJsonWithTemplateId(resp1, 'test-uuid', [
+        {'dataKey': 'r101', 'answer': 'Charlie'},
+      ]);
+
+      final resp2 = Directory(
+        '${tempDir.path}/session-2/answers/resp-D/assign1/section1',
+      )..createSync(recursive: true);
+      _writeDataJsonWithTemplateId(resp2, 'other-template-uuid', [
+        {'dataKey': 'r101', 'answer': 'Dave'},
+      ]);
+
+      final result = await reader.loadRecords(tempDir, _testTemplate());
+
+      expect(result.records.length, 1);
+      expect(result.records.first['r101'], 'Charlie');
+    });
+
+    test('session format: two sessions with one respondent each', () async {
+      const templateId = 'test-uuid';
+      for (final session in ['session-X', 'session-Y']) {
+        final dir = Directory(
+          '${tempDir.path}/$session/answers/resp-Z$session/a1/s1',
+        )..createSync(recursive: true);
+        _writeDataJsonWithTemplateId(dir, templateId, [
+          {'dataKey': 'r101', 'answer': session},
+        ]);
+      }
+
+      final result = await reader.loadRecords(tempDir, _testTemplate());
+      expect(result.records.length, 2);
     });
   });
 }
@@ -159,4 +283,14 @@ FasihTemplate _testTemplate() => FasihTemplate.fromJson(
 void _writeDataJson(Directory dir, List<Map<String, dynamic>> answers) {
   File('${dir.path}/data.json')
       .writeAsStringSync(jsonEncode({'answers': answers}));
+}
+
+void _writeDataJsonWithTemplateId(
+  Directory dir,
+  String templateId,
+  List<Map<String, dynamic>> answers,
+) {
+  File('${dir.path}/data.json').writeAsStringSync(
+    jsonEncode({'templateId': templateId, 'answers': answers}),
+  );
 }

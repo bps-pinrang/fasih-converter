@@ -38,7 +38,7 @@ android {
 
     defaultConfig {
         applicationId = "id.go.bps.pinrangkab.fasih_converter"
-        minSdk = 21
+        minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName

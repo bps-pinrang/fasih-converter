@@ -12,12 +12,12 @@ import '../models/fasih_template.dart';
 
 class RespondentMeta {
   final String respUuid;
-  final String questionUuid;
+  final String answersRelPath;
   final String rawDataJson;
 
   const RespondentMeta({
     required this.respUuid,
-    required this.questionUuid,
+    required this.answersRelPath,
     required this.rawDataJson,
   });
 }
@@ -52,11 +52,17 @@ class FasihBackupWriter {
       while (true) {
         final respUuid = metaSheet.getRangeByIndex(row, 1).getText() ?? '';
         if (respUuid.isEmpty) break;
-        final questionUuid = metaSheet.getRangeByIndex(row, 2).getText() ?? '';
+        final answersRelPath =
+            metaSheet.getRangeByIndex(row, 2).getText() ?? '';
         final rawDataJson = metaSheet.getRangeByIndex(row, 3).getText() ?? '{}';
 
         final dataDir = Directory(
-          p.join(tempDir.path, respUuid, 'answers', questionUuid),
+          p.join(
+            tempDir.path,
+            respUuid,
+            'answers',
+            p.joinAll(answersRelPath.split('/')),
+          ),
         );
         await dataDir.create(recursive: true);
         await File(p.join(dataDir.path, 'data.json'))
@@ -128,14 +134,14 @@ class FasihBackupWriter {
 
     // Row 6: respondent header
     sheet.getRangeByIndex(6, 1).setText('resp_uuid');
-    sheet.getRangeByIndex(6, 2).setText('question_uuid');
+    sheet.getRangeByIndex(6, 2).setText('answers_rel_path');
     sheet.getRangeByIndex(6, 3).setText('raw_data_json');
 
     // Row 7+: one row per respondent
     for (var i = 0; i < respondentMeta.length; i++) {
       final m = respondentMeta[i];
       sheet.getRangeByIndex(7 + i, 1).setText(m.respUuid);
-      sheet.getRangeByIndex(7 + i, 2).setText(m.questionUuid);
+      sheet.getRangeByIndex(7 + i, 2).setText(m.answersRelPath);
       sheet.getRangeByIndex(7 + i, 3).setText(m.rawDataJson);
     }
 

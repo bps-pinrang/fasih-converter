@@ -48,6 +48,10 @@ void main() {
     settings = MockSettingsRepository();
     sheetApi = MockFasihConverterSheetApi();
     writer = MockFasihBackupWriter();
+
+    when(() => settings.lastExtractedDirPath).thenReturn(null);
+    when(() => settings.lastTemplateId).thenReturn(null);
+    when(() => settings.clearLastSession()).thenAnswer((_) async {});
   });
 
   HomeCubit buildCubit() => HomeCubit(reader, settings, sheetApi, writer);
