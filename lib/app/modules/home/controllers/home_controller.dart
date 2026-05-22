@@ -267,6 +267,6 @@ class HomeController extends GetxController {
   void _cleanup() {
     final dir = _extractedDir;
     _extractedDir = null;
-    dir?.delete(recursive: true).catchError((_) => dir);
+    dir?.delete(recursive: true).ignore();
   }
 }

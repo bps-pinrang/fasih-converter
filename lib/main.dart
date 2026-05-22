@@ -9,7 +9,7 @@ void main() async {
   runApp(
     GetMaterialApp(
       title: 'Fasih Converter',
-      initialRoute: AppPages.initial,
+      initialRoute: AppPages.INITIAL,
       getPages: AppPages.routes,
       debugShowCheckedModeBanner: false,
     ),
