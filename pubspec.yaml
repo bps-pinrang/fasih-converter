@@ -55,7 +55,7 @@ flutter:
 flutter_app_name:
   name: Fasih Converter
 
-flutter_icons:
+flutter_launcher_icons:
   image_path: assets/launchers/icon.png
   image_path_android: assets/launchers/icon.png
   ios: true
