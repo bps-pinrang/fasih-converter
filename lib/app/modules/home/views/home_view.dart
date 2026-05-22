@@ -1,3 +1,4 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:filesize/filesize.dart';
@@ -8,6 +9,7 @@ import 'package:line_icons/line_icons.dart';
 
 import '../controllers/home_controller.dart';
 
+@RoutePage()
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
 
