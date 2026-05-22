@@ -101,7 +101,7 @@ class _HomeViewState extends State<HomeView> {
                 subtitle: Text('${t.fields.length} kolom · ${t.dataKey}'),
                 onTap: () {
                   Navigator.of(context).pop();
-                  _cubit.selectTemplate(t);
+                  context.read<HomeCubit>().selectTemplate(t);
                 },
               ),
             ),
@@ -135,7 +135,7 @@ class _HomeViewState extends State<HomeView> {
             children: [
               BlocBuilder<HomeCubit, HomeState>(
                 builder: (context, state) => Text(
-                  'Fasih Converter ${_cubit.appVersion}',
+                  'Fasih Converter ${context.read<HomeCubit>().appVersion}',
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 18,
@@ -148,38 +148,44 @@ class _HomeViewState extends State<HomeView> {
                 style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
               ),
               const SizedBox(height: 24),
-              _buildDropZone(),
+              const _HomeDropZone(),
               const SizedBox(height: 16),
-              _buildActionRow(),
+              const _HomeActionRow(),
               const SizedBox(height: 16),
-              _buildDataTable(),
+              const _HomeDataTable(),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildDropZone() {
+class _HomeDropZone extends StatelessWidget {
+  const _HomeDropZone();
+
+  @override
+  Widget build(BuildContext context) {
     return DottedBorder(
-      color: Colors.blueAccent,
-      borderType: BorderType.RRect,
-      dashPattern: const [8, 4],
-      radius: const Radius.circular(12),
+      options: const RoundedRectDottedBorderOptions(
+        color: Colors.blueAccent,
+        dashPattern: [8, 4],
+        radius: Radius.circular(12),
+      ),
       child: Material(
         elevation: 0,
         color: const Color(0xFFDEDEDE).withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: _cubit.pickAndLoadBackup,
-          child: SizedBox(
+          onTap: context.read<HomeCubit>().pickAndLoadBackup,
+          child: const SizedBox(
             width: double.infinity,
             height: 100,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 16),
               child: BlocBuilder<HomeCubit, HomeState>(
-                builder: (_, state) => _buildDropZoneContent(state),
+                builder: _HomeDropZoneContent._build,
               ),
             ),
           ),
@@ -187,8 +193,18 @@ class _HomeViewState extends State<HomeView> {
       ),
     );
   }
+}
 
-  Widget _buildDropZoneContent(HomeState state) {
+class _HomeDropZoneContent extends StatelessWidget {
+  const _HomeDropZoneContent(this.state);
+
+  final HomeState state;
+
+  static Widget _build(BuildContext context, HomeState state) =>
+      _HomeDropZoneContent(state);
+
+  @override
+  Widget build(BuildContext context) {
     if (state is HomeLoadingFile) {
       return const Center(
         child: SpinKitFadingCircle(color: Colors.blue, size: 30),
@@ -196,6 +212,7 @@ class _HomeViewState extends State<HomeView> {
     }
 
     if (state is HomeFileLoaded) {
+      final loaded = state as HomeFileLoaded;
       return Row(
         children: [
           const SizedBox(
@@ -209,14 +226,14 @@ class _HomeViewState extends State<HomeView> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  state.file.name,
+                  loaded.file.name,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Text('Ukuran: ${filesize(state.file.size)}'),
+                Text('Ukuran: ${filesize(loaded.file.size)}'),
                 Text(
-                  '${state.template.title} · ${state.records.length} responden',
+                  '${loaded.template.title} · ${loaded.records.length} responden',
                   style: const TextStyle(fontSize: 12),
                 ),
               ],
@@ -238,19 +255,25 @@ class _HomeViewState extends State<HomeView> {
       ],
     );
   }
+}
 
-  Widget _buildActionRow() {
+class _HomeActionRow extends StatelessWidget {
+  const _HomeActionRow();
+
+  @override
+  Widget build(BuildContext context) {
     return BlocBuilder<HomeCubit, HomeState>(
-      builder: (_, state) {
+      builder: (context, state) {
         final loaded = state is HomeFileLoaded ? state : null;
         final hasData = loaded != null;
+        final cubit = context.read<HomeCubit>();
         return Column(
           children: [
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: hasData ? _cubit.shareExcel : null,
+                    onPressed: hasData ? cubit.shareExcel : null,
                     style: OutlinedButton.styleFrom(
                       backgroundColor: Colors.blueAccent,
                       foregroundColor: Colors.white,
@@ -263,7 +286,7 @@ class _HomeViewState extends State<HomeView> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: hasData ? _cubit.clearData : null,
+                    onPressed: hasData ? cubit.clearData : null,
                     style: OutlinedButton.styleFrom(
                       backgroundColor: Colors.red.shade300,
                       foregroundColor: Colors.white,
@@ -280,7 +303,7 @@ class _HomeViewState extends State<HomeView> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: hasData && !loaded.isExporting
-                        ? _cubit.exportToExcel
+                        ? cubit.exportToExcel
                         : null,
                     style: OutlinedButton.styleFrom(
                       backgroundColor: Colors.green.shade400,
@@ -304,7 +327,7 @@ class _HomeViewState extends State<HomeView> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: hasData && !loaded.isUploading
-                        ? _cubit.uploadToSheets
+                        ? cubit.uploadToSheets
                         : null,
                     style: OutlinedButton.styleFrom(
                       backgroundColor: Colors.teal.shade400,
@@ -331,10 +354,15 @@ class _HomeViewState extends State<HomeView> {
       },
     );
   }
+}
 
-  Widget _buildDataTable() {
+class _HomeDataTable extends StatelessWidget {
+  const _HomeDataTable();
+
+  @override
+  Widget build(BuildContext context) {
     return BlocBuilder<HomeCubit, HomeState>(
-      builder: (_, state) {
+      builder: (context, state) {
         if (state is! HomeFileLoaded) return const SizedBox.shrink();
 
         final template = state.template;
