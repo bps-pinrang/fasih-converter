@@ -70,3 +70,6 @@ macos/
 windows/
 linux/
 web/
+
+# Release keystore — never commit
+android/app/release.jks
