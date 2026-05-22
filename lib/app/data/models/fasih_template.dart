@@ -19,12 +19,14 @@ class FasihTemplate {
   final String title;
   final String dataKey;
   final List<FasihTemplateField> fields;
+  final String rawJson;
 
   const FasihTemplate({
     required this.id,
     required this.title,
     required this.dataKey,
     required this.fields,
+    required this.rawJson,
   });
 
   static FasihTemplate fromJson(String id, String jsonStr) {
@@ -36,6 +38,7 @@ class FasihTemplate {
       title: (map['title'] as String?) ?? id,
       dataKey: (map['dataKey'] as String?) ?? id,
       fields: fields,
+      rawJson: jsonStr,
     );
   }
 
