@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "fasih_converter",
+  "project_id": "22f230cf-09c5-4d3f-80e5-e6e8e7444e66"
+}

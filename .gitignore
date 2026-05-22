@@ -47,3 +47,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
