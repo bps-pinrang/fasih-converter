@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -221,6 +222,30 @@ class FasihBackupReader {
         ),
       );
       onRecordAdded?.call();
+    }
+  }
+
+  /// Parses a reference.json string into a {dataKey: answer} map.
+  /// Returns an empty map on any error or missing/invalid content.
+  @visibleForTesting
+  static Map<String, dynamic> parseReferenceJson(String raw) {
+    try {
+      final root = jsonDecode(raw) as Map<String, dynamic>;
+      final details = root['details'];
+      if (details is! List) return {};
+      final result = <String, dynamic>{};
+      for (final item in details) {
+        if (item is! Map<String, dynamic>) continue;
+        final key = item['dataKey'] as String?;
+        if (key == null || key.isEmpty) continue;
+        final answer = item['answer'];
+        if (answer == null) continue;
+        if (answer is String && answer.isEmpty) continue;
+        result[key] = answer;
+      }
+      return result;
+    } catch (_) {
+      return {};
     }
   }
 
