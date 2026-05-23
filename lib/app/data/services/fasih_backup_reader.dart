@@ -270,6 +270,7 @@ class FasihBackupReader {
     String? templateId,
     String? templateDataKey,
     Set<String>? fieldKeys,
+    Map<String, dynamic>? referenceMap,
   }) {
     try {
       // Reject if the file declares a templateId/dataKey that does not match.
@@ -295,6 +296,15 @@ class FasihBackupReader {
         values[key] = FasihRecord.extractAnswer(item[kColumnAnswer]);
       }
 
+      // Fill gaps from reference.json (data.json always wins).
+      if (referenceMap != null) {
+        for (final entry in referenceMap.entries) {
+          if (!values.containsKey(entry.key)) {
+            values[entry.key] = FasihRecord.extractAnswer(entry.value);
+          }
+        }
+      }
+
       // Cross-template guard: if the file has answers but none of its keys
       // match this template's fields, it belongs to a different survey.
       if (fieldKeys != null &&
@@ -308,5 +318,23 @@ class FasihBackupReader {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Public wrapper for testing the record-building logic.
+  @visibleForTesting
+  static FasihRecord? buildRecordFromMaps(
+    Map<String, dynamic> dataMap, {
+    Map<String, dynamic>? referenceMap,
+    String? templateId,
+    String? templateDataKey,
+    Set<String>? fieldKeys,
+  }) {
+    return FasihBackupReader()._recordFromMap(
+      dataMap,
+      templateId: templateId,
+      templateDataKey: templateDataKey,
+      fieldKeys: fieldKeys,
+      referenceMap: referenceMap,
+    );
   }
 }

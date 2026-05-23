@@ -63,4 +63,64 @@ void main() {
       );
     });
   });
+
+  group('reference merge in record building', () {
+    test('reference fills key absent from data answers', () {
+      final dataMap = {
+        'templateDataKey': 'VHTS_2026',
+        'templateId': 'uuid-1',
+        'answers': [
+          {'dataKey': 'prov', 'answer': '[51] BALI'},
+        ],
+      };
+      final refMap = {'nup': '001', 'prov': '[99] OVERRIDE'};
+      final record = FasihBackupReader.buildRecordFromMaps(
+        dataMap,
+        referenceMap: refMap,
+        templateId: 'uuid-1',
+        templateDataKey: 'VHTS_2026',
+        fieldKeys: {'prov', 'nup'},
+      );
+      expect(record, isNotNull);
+      expect(record!.values['prov'], '[51] BALI'); // data wins
+      expect(record.values['nup'], '001'); // reference fills gap
+    });
+
+    test('data.json answer wins over reference when both present', () {
+      final dataMap = {
+        'templateDataKey': 'VHTS_2026',
+        'templateId': 'uuid-1',
+        'answers': [
+          {'dataKey': 'prov', 'answer': '[51] BALI'},
+        ],
+      };
+      final refMap = {'prov': '[99] SHOULD NOT WIN'};
+      final record = FasihBackupReader.buildRecordFromMaps(
+        dataMap,
+        referenceMap: refMap,
+        templateId: 'uuid-1',
+        templateDataKey: 'VHTS_2026',
+        fieldKeys: {'prov'},
+      );
+      expect(record!.values['prov'], '[51] BALI');
+    });
+
+    test('null referenceMap is a no-op', () {
+      final dataMap = {
+        'templateDataKey': 'VHTS_2026',
+        'templateId': 'uuid-1',
+        'answers': [
+          {'dataKey': 'prov', 'answer': '[51] BALI'},
+        ],
+      };
+      final record = FasihBackupReader.buildRecordFromMaps(
+        dataMap,
+        referenceMap: null,
+        templateId: 'uuid-1',
+        templateDataKey: 'VHTS_2026',
+        fieldKeys: {'prov'},
+      );
+      expect(record!.values['prov'], '[51] BALI');
+    });
+  });
 }
