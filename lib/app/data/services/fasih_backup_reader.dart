@@ -204,11 +204,21 @@ class FasihBackupReader {
       final rawJson = await entity.readAsString();
       final map = await _decodeJson(rawJson);
       if (map == null) continue;
+
+      // Read reference.json from the same directory if present.
+      Map<String, dynamic>? referenceMap;
+      final refFile = File(p.join(entity.parent.path, 'reference.json'));
+      if (await refFile.exists()) {
+        final refRaw = await refFile.readAsString();
+        referenceMap = parseReferenceJson(refRaw);
+      }
+
       final parsed = _recordFromMap(
         map,
         templateId: template.id,
         templateDataKey: template.dataKey,
         fieldKeys: fieldKeys,
+        referenceMap: referenceMap,
       );
       if (parsed == null) continue;
       records.add(parsed);
