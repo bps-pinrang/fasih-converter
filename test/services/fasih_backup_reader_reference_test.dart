@@ -105,6 +105,24 @@ void main() {
       expect(record!.values['prov'], '[51] BALI');
     });
 
+    test('reference-only keys satisfy cross-template guard', () {
+      final dataMap = {
+        'templateDataKey': 'VHTS_2026',
+        'templateId': 'uuid-1',
+        'answers': <Map<String, dynamic>>[],
+      };
+      final refMap = {'nup': '001'};
+      final record = FasihBackupReader.buildRecordFromMaps(
+        dataMap,
+        referenceMap: refMap,
+        templateId: 'uuid-1',
+        templateDataKey: 'VHTS_2026',
+        fieldKeys: {'nup', 'prov'},
+      );
+      expect(record, isNotNull);
+      expect(record!.values['nup'], '001');
+    });
+
     test('null referenceMap is a no-op', () {
       final dataMap = {
         'templateDataKey': 'VHTS_2026',
