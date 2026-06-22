@@ -174,7 +174,18 @@ class HomeCubit extends Cubit<HomeState> {
       }
 
       final file = result.files.first;
-      _extractedDir = await _reader.extractZip(File(path));
+      _extractedDir = await _reader.extractZip(
+        File(path),
+        onProgress: (current, total) {
+          if (!isClosed) {
+            emit(HomeLoadingFile(
+              loaded: current,
+              total: total,
+              subtitle: 'Mengekstrak berkas ($current / $total)...',
+            ));
+          }
+        },
+      );
       _availableTemplates = await _reader.discoverTemplates(_extractedDir!);
 
       if (_availableTemplates.isEmpty) {

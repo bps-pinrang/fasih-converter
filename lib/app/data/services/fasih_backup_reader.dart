@@ -24,7 +24,10 @@ class FasihBackupReader {
     'backup'
   };
 
-  Future<Directory> extractZip(File zipFile) async {
+  Future<Directory> extractZip(
+    File zipFile, {
+    void Function(int current, int total)? onProgress,
+  }) async {
     final appDir = await getApplicationDocumentsDirectory();
     final name = p.basenameWithoutExtension(zipFile.path);
     final dest = Directory(p.join(appDir.path, name));
@@ -35,9 +38,18 @@ class FasihBackupReader {
     final inputStream = InputFileStream(zipFile.path);
     try {
       final archive = ZipDecoder().decodeStream(inputStream);
+      final total = archive.length;
+      var current = 0;
+      // Throttle to ~1% steps so we don't spam emit on large archives.
+      final step = (total / 100).ceil().clamp(1, total.clamp(1, total));
+      var lastReported = 0;
+
       for (final entry in archive) {
         final entryPath = _sanitizePath(entry.name);
-        if (entryPath == null) continue;
+        if (entryPath == null) {
+          current++;
+          continue;
+        }
         if (entry.isFile) {
           final outFile = File(p.join(dest.path, entryPath));
           await outFile.parent.create(recursive: true);
@@ -47,6 +59,12 @@ class FasihBackupReader {
           } finally {
             await outStream.close();
           }
+        }
+        current++;
+        if (onProgress != null &&
+            (current == total || current - lastReported >= step)) {
+          lastReported = current;
+          onProgress(current, total);
         }
       }
       await archive.clear();
@@ -168,8 +186,8 @@ class FasihBackupReader {
     }
 
     // Second pass: process each task, firing onProgress after every record.
-    // We don't know the total upfront (some data.json files fail validation),
-    // so total is reported as 0 (indeterminate) and the UI shows a count.
+    // Use tasks.length as the total so the UI can show a determinate bar.
+    final taskTotal = tasks.length;
     for (final t in tasks) {
       await _loadRespondent(
         respUuid: t.respUuid,
@@ -179,8 +197,9 @@ class FasihBackupReader {
         records: records,
         meta: meta,
         onRecord: onRecord,
-        onRecordAdded:
-            onProgress != null ? () => onProgress(++loadedCount, 0) : null,
+        onRecordAdded: onProgress != null
+            ? () => onProgress(++loadedCount, taskTotal)
+            : null,
       );
     }
 
