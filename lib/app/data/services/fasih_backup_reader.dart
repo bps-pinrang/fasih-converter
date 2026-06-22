@@ -363,9 +363,12 @@ class FasihBackupReader {
   }) {
     try {
       // Reject if the file declares a templateId/dataKey that does not match.
-      // Files with neither field present are accepted (legacy backups).
+      // Files with neither field present are accepted (legacy backups) but are
+      // subject to the cross-template key-overlap guard below.
       final fileTemplateId = map[kColumnTemplateId] as String?;
       final fileDataKey = map[kColumnTemplateDataKey] as String?;
+      final isLegacy = (fileTemplateId == null || fileTemplateId.isEmpty) &&
+          (fileDataKey == null || fileDataKey.isEmpty);
       if (fileTemplateId != null && fileTemplateId.isNotEmpty) {
         if (templateId != null && fileTemplateId != templateId) return null;
       } else if (fileDataKey != null && fileDataKey.isNotEmpty) {
@@ -394,13 +397,19 @@ class FasihBackupReader {
         }
       }
 
-      // Cross-template guard: if the file has answers but none of its keys
-      // match this template's fields, it belongs to a different survey.
-      if (fieldKeys != null &&
+      // Cross-template guard: only for legacy records (no declared templateId /
+      // templateDataKey). Require that at least 20 % of the record's answer
+      // keys are recognised field keys of this template.  A single shared
+      // generic key (prov / kab / desa) is not sufficient — it would
+      // incorrectly accept records from co-active surveys (e.g. SE2026,
+      // VHTS) whose location fields happen to overlap with this template.
+      if (isLegacy &&
+          fieldKeys != null &&
           fieldKeys.isNotEmpty &&
-          values.isNotEmpty &&
-          !values.keys.any(fieldKeys.contains)) {
-        return null;
+          values.isNotEmpty) {
+        final matchCount = values.keys.where(fieldKeys.contains).length;
+        final minMatch = (values.length * 0.20).ceil();
+        if (matchCount < minMatch) return null;
       }
 
       return FasihRecord(values);

@@ -141,4 +141,124 @@ void main() {
       expect(record!.values['prov'], '[51] BALI');
     });
   });
+
+  group('cross-template guard — 20% threshold', () {
+    // Simulate a legacy record (no templateId / templateDataKey).
+    Map<String, dynamic> legacyDataMap(List<Map<String, dynamic>> answers) => {
+          'answers': answers,
+        };
+
+    List<Map<String, dynamic>> answersFor(List<String> keys) =>
+        keys.map((k) => {'dataKey': k, 'answer': 'x'}).toList();
+
+    test('accepts legacy record when ≥20% of its keys match template', () {
+      // 10 answer keys, 3 match template (30%) → accept
+      final record = FasihBackupReader.buildRecordFromMaps(
+        legacyDataMap(answersFor([
+          'prov', 'kab', 'r501', // match
+          'ada_usaha', 'kode_bang', 'kbli_1', 'kbli_2', 'kbli_3', 'kbli_4',
+          'kbli_5',
+        ])),
+        fieldKeys: {'prov', 'kab', 'r501', 'kec', 'desa'},
+      );
+      expect(record, isNotNull);
+    });
+
+    test('rejects legacy SE2026-like record with <20% key overlap', () {
+      // 10 answer keys, only 1 matches template (10%) → reject
+      final record = FasihBackupReader.buildRecordFromMaps(
+        legacyDataMap(answersFor([
+          'prov', // match
+          'ada_usaha', 'kode_bang', 'kbli_1', 'kbli_2', 'kbli_3', 'kbli_4',
+          'kbli_5', 'kbli_6', 'kbli_7',
+        ])),
+        fieldKeys: {'prov', 'kab', 'r501', 'kec', 'desa'},
+      );
+      expect(record, isNull);
+    });
+
+    test('rejects VHTS-like record with many keys but tiny overlap', () {
+      // 50 answer keys, 2 match template (4%) → reject
+      final allKeys = List.generate(48, (i) => 'vhts_field_$i')
+        ..addAll(['prov', 'kab']);
+      final record = FasihBackupReader.buildRecordFromMaps(
+        legacyDataMap(answersFor(allKeys)),
+        fieldKeys: {'prov', 'kab', 'r501', 'r502', 'r503', 'sumberdata'},
+      );
+      expect(record, isNull);
+    });
+
+    test('accepts SAK prelist-like legacy record with high overlap', () {
+      // 30 answer keys, 15 match template (50%) → accept
+      final sakKeys = [
+        'prov',
+        'kab',
+        'kec',
+        'desa',
+        'sls',
+        'r501',
+        'r502',
+        'r503',
+        'r504',
+        'r505',
+        'r506',
+        'r507',
+        'r508',
+        'r509',
+        'id_prelist',
+      ];
+      final otherKeys = List.generate(15, (i) => 'computed_$i');
+      final record = FasihBackupReader.buildRecordFromMaps(
+        legacyDataMap(answersFor([...sakKeys, ...otherKeys])),
+        fieldKeys: {
+          'prov',
+          'kab',
+          'kec',
+          'desa',
+          'sls',
+          'r501',
+          'r502',
+          'r503',
+          'r504',
+          'r505',
+          'r506',
+          'r507',
+          'r508',
+          'r509',
+          'id_prelist',
+          'sumberdata',
+          'catatan',
+        },
+      );
+      expect(record, isNotNull);
+    });
+
+    test('records with declared templateId bypass threshold entirely', () {
+      // Only 1 of 10 keys matches, but templateId is declared and matches.
+      final record = FasihBackupReader.buildRecordFromMaps(
+        {
+          'templateId': 'tmpl-abc',
+          'templateDataKey': 'my_survey',
+          'answers': answersFor([
+            'prov',
+            'ada_usaha',
+            'kode_bang',
+            'kbli_1',
+            'kbli_2',
+            'kbli_3',
+            'kbli_4',
+            'kbli_5',
+            'kbli_6',
+            'kbli_7',
+          ]),
+        },
+        templateId: 'tmpl-abc',
+        templateDataKey: 'my_survey',
+        fieldKeys: {'prov', 'kab', 'r501'},
+      );
+      // Must pass because templateId matches — threshold is a guard for
+      // LEGACY (undeclared) records only.
+      expect(record, isNotNull);
+    });
+  });
 }
