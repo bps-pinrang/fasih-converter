@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:json_converter/app/data/models/backup_history_entry.dart';
+import 'package:json_converter/app/data/models/fasih_record.dart';
 import 'package:json_converter/app/data/models/fasih_template.dart';
 import 'package:json_converter/app/data/providers/fasih_converter_sheet_api.dart';
 import 'package:json_converter/app/data/repositories/settings_repository.dart';
@@ -39,9 +40,15 @@ class _LoadProgress {
   const _LoadProgress(this.loaded, this.total);
 }
 
+class _LoadRecord {
+  final FasihRecord record;
+  final RespondentMeta meta;
+  const _LoadRecord(this.record, this.meta);
+}
+
 class _LoadDone {
-  final RespondentLoadResult result;
-  const _LoadDone(this.result);
+  final String envJson;
+  const _LoadDone(this.envJson);
 }
 
 class _LoadError {
@@ -56,8 +63,9 @@ void _loadRecordsEntry(_LoadArgs args) async {
       args.template,
       onProgress: (loaded, total) =>
           args.sendPort.send(_LoadProgress(loaded, total)),
+      onRecord: (record, meta) => args.sendPort.send(_LoadRecord(record, meta)),
     );
-    args.sendPort.send(_LoadDone(result));
+    args.sendPort.send(_LoadDone(result.envJson));
   } catch (e) {
     args.sendPort.send(_LoadError(e.toString()));
   }
@@ -482,16 +490,28 @@ class HomeCubit extends Cubit<HomeState> {
       _LoadArgs(dirPath, template, port.sendPort),
     );
 
+    final records = <FasihRecord>[];
+    final metas = <RespondentMeta>[];
+
     port.listen((msg) {
       if (msg is _LoadProgress) {
         if (!isClosed) {
           emit(HomeLoadingFile(loaded: msg.loaded, total: msg.total));
         }
+      } else if (msg is _LoadRecord) {
+        records.add(msg.record);
+        metas.add(msg.meta);
       } else if (msg is _LoadDone) {
         port.close();
         _loadPort = null;
         _loadIsolate = null;
-        if (!completer.isCompleted) completer.complete(msg.result);
+        if (!completer.isCompleted) {
+          completer.complete(RespondentLoadResult(
+            records: records,
+            meta: metas,
+            envJson: msg.envJson,
+          ));
+        }
       } else if (msg is _LoadError) {
         port.close();
         _loadPort = null;
