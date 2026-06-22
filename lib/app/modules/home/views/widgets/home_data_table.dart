@@ -18,7 +18,12 @@ class HomeDataTable extends StatelessWidget {
         final records = state.records;
 
         final columns = template.fields
-            .map((f) => DataColumn2(label: Text(f.label), fixedWidth: 150))
+            .map(
+              (f) => DataColumn2(
+                label: Text(f.label),
+                size: ColumnSize.S,
+              ),
+            )
             .toList();
 
         return Container(
