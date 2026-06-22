@@ -186,8 +186,9 @@ class FasihBackupReader {
     }
 
     // Second pass: process each task, firing onProgress after every record.
-    // Use tasks.length as the total so the UI can show a determinate bar.
-    final taskTotal = tasks.length;
+    // Total is reported as 0 (indeterminate) because tasks.length equals
+    // top-level directories — in old-format backups one directory can yield
+    // many respondents, so using it as a total would show values > 100%.
     for (final t in tasks) {
       await _loadRespondent(
         respUuid: t.respUuid,
@@ -197,9 +198,8 @@ class FasihBackupReader {
         records: records,
         meta: meta,
         onRecord: onRecord,
-        onRecordAdded: onProgress != null
-            ? () => onProgress(++loadedCount, taskTotal)
-            : null,
+        onRecordAdded:
+            onProgress != null ? () => onProgress(++loadedCount, 0) : null,
       );
     }
 
