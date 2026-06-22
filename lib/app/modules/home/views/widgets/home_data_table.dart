@@ -1,12 +1,20 @@
-import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:json_converter/app/data/services/fasih_table_html_generator.dart';
 
 import '../../cubit/home_cubit.dart';
 import '../../cubit/home_state.dart';
 
-class HomeDataTable extends StatelessWidget {
+class HomeDataTable extends StatefulWidget {
   const HomeDataTable({super.key});
+
+  @override
+  State<HomeDataTable> createState() => _HomeDataTableState();
+}
+
+class _HomeDataTableState extends State<HomeDataTable> {
+  double _webViewHeight = 400;
 
   @override
   Widget build(BuildContext context) {
@@ -14,20 +22,16 @@ class HomeDataTable extends StatelessWidget {
       builder: (context, state) {
         if (state is! HomeFileLoaded) return const SizedBox.shrink();
 
-        final template = state.template;
-        final records = state.records;
-
-        final columns = template.fields
-            .map(
-              (f) => DataColumn2(
-                label: Text(f.label),
-                size: ColumnSize.S,
-              ),
-            )
-            .toList();
+        final html = FasihTableHtmlGenerator.wrapWithStyling(
+          FasihTableHtmlGenerator.generate(state.template, state.records),
+          state.records.length,
+        );
 
         return Container(
-          height: MediaQuery.sizeOf(context).height * 0.5,
+          height: _webViewHeight.clamp(
+            200,
+            MediaQuery.sizeOf(context).height * 0.6,
+          ),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -40,33 +44,19 @@ class HomeDataTable extends StatelessWidget {
               ),
             ],
           ),
-          padding: const EdgeInsets.all(8),
-          child: DataTable2(
-            columnSpacing: 12,
-            minWidth: template.fields.length * 150.0,
-            headingRowColor: WidgetStateProperty.all(Colors.blueGrey.shade100),
-            border: TableBorder.all(color: Colors.grey.shade300),
-            empty: records.isEmpty
-                ? const Center(child: Text('Belum ada data'))
-                : null,
-            columns: columns,
-            rows: records
-                .take(200)
-                .map(
-                  (record) => DataRow2(
-                    cells: template.fields
-                        .map(
-                          (f) => DataCell(
-                            Text(
-                              record[f.dataKey],
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                )
-                .toList(),
+          clipBehavior: Clip.antiAlias,
+          child: InAppWebView(
+            initialData: InAppWebViewInitialData(data: html),
+            initialSettings: InAppWebViewSettings(
+              supportZoom: false,
+              isInspectable: false,
+            ),
+            onConsoleMessage: (controller, msg) {
+              final h = double.tryParse(msg.message);
+              if (h != null && h > 0 && mounted) {
+                setState(() => _webViewHeight = h + 2);
+              }
+            },
           ),
         );
       },
