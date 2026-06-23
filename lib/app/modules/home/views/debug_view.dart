@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as p;
+import 'package:share_plus/share_plus.dart';
 
+import '../../../data/services/app_error_logger.dart';
 import '../cubit/home_cubit.dart';
 import '../cubit/home_state.dart';
 
@@ -24,7 +26,7 @@ class _DebugViewState extends State<DebugView>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
+    _tabs = TabController(length: 5, vsync: this);
     final cubit = context.read<HomeCubit>();
     _stateLog.add('${_timestamp()} [init] ${_describe(cubit.state)}');
     _sub = cubit.stream.listen((state) {
@@ -66,11 +68,14 @@ class _DebugViewState extends State<DebugView>
         title: const Text('Debug'),
         bottom: TabBar(
           controller: _tabs,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: const [
             Tab(text: 'State Log'),
             Tab(text: 'ZIP Tree'),
             Tab(text: 'Template'),
             Tab(text: 'Meta'),
+            Tab(text: 'Errors'),
           ],
         ),
       ),
@@ -85,6 +90,7 @@ class _DebugViewState extends State<DebugView>
               _ZipTreeTab(dir: cubit.extractedDir),
               _TemplateTab(state: loaded),
               _MetaTab(state: loaded),
+              _ErrorsTab(appVersion: cubit.appVersion),
             ],
           );
         },
@@ -137,10 +143,36 @@ class _ZipTreeTab extends StatelessWidget {
         return ListView.builder(
           padding: const EdgeInsets.all(8),
           itemCount: files.length,
-          itemBuilder: (_, i) => Text(
-            files[i],
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-          ),
+          itemBuilder: (_, i) {
+            final path = files[i];
+            final isDir = path.endsWith('/');
+            final parts = path.split('/').where((s) => s.isNotEmpty).toList();
+            final depth = parts.length - 1;
+            final name = parts.isEmpty ? path : parts.last;
+            return Padding(
+              padding: EdgeInsets.only(top: 2, left: 8.0 + depth * 16.0),
+              child: Row(
+                children: [
+                  Icon(
+                    isDir ? Icons.folder : Icons.insert_drive_file_outlined,
+                    size: 14,
+                    color: isDir ? Colors.amber.shade700 : Colors.grey,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      isDir ? '$name/' : name,
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        fontWeight: isDir ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -251,6 +283,219 @@ class _MetaTab extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _ErrorsTab extends StatefulWidget {
+  const _ErrorsTab({required this.appVersion});
+
+  final String appVersion;
+
+  @override
+  State<_ErrorsTab> createState() => _ErrorsTabState();
+}
+
+class _ErrorsTabState extends State<_ErrorsTab> {
+  @override
+  void initState() {
+    super.initState();
+    AppErrorLogger.instance.addListener(_refresh);
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    AppErrorLogger.instance.removeListener(_refresh);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reports = AppErrorLogger.instance.reports.reversed.toList();
+    if (reports.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.green, size: 48),
+            SizedBox(height: 16),
+            Text('Tidak ada error.'),
+          ],
+        ),
+      );
+    }
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            children: [
+              Text(
+                '${reports.length} error',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const Spacer(),
+              TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                onPressed: AppErrorLogger.instance.clear,
+                child: const Text('Hapus Semua'),
+              ),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                onPressed: () => _shareAll(reports),
+                icon: const Icon(Icons.share, size: 14),
+                label: const Text('Bagikan'),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(8),
+            itemCount: reports.length,
+            separatorBuilder: (_, __) => const Divider(height: 16),
+            itemBuilder: (_, i) => _ErrorCard(
+              report: reports[i],
+              onShare: () => _shareOne(reports[i]),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _shareOne(ErrorReport r) async {
+    await SharePlus.instance.share(
+      ShareParams(
+        text: AppErrorLogger.formatReport(r, appVersion: widget.appVersion),
+      ),
+    );
+  }
+
+  Future<void> _shareAll(List<ErrorReport> reports) async {
+    final buf = StringBuffer();
+    for (var i = 0; i < reports.length; i++) {
+      if (i > 0) buf.writeln('\n${'=' * 50}\n');
+      buf.write(
+        AppErrorLogger.formatReport(reports[i], appVersion: widget.appVersion),
+      );
+    }
+    await SharePlus.instance.share(ShareParams(text: buf.toString()));
+  }
+}
+
+class _ErrorCard extends StatefulWidget {
+  const _ErrorCard({required this.report, required this.onShare});
+
+  final ErrorReport report;
+  final VoidCallback onShare;
+
+  @override
+  State<_ErrorCard> createState() => _ErrorCardState();
+}
+
+class _ErrorCardState extends State<_ErrorCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = widget.report;
+    final errorPreview =
+        r.error.length > 200 ? '${r.error.substring(0, 200)}…' : r.error;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 14),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                r.timestamp.toIso8601String().substring(0, 23),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: Icon(
+                _expanded ? Icons.expand_less : Icons.expand_more,
+                size: 18,
+              ),
+              onPressed: () => setState(() => _expanded = !_expanded),
+              constraints: const BoxConstraints(),
+              padding: const EdgeInsets.all(4),
+              tooltip: 'Lihat stack trace',
+            ),
+            IconButton(
+              icon: const Icon(Icons.share, size: 16),
+              onPressed: widget.onShare,
+              constraints: const BoxConstraints(),
+              padding: const EdgeInsets.all(4),
+              tooltip: 'Bagikan error ini',
+            ),
+          ],
+        ),
+        if (r.context.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: r.context.entries
+                .map(
+                  (e) => Chip(
+                    label: Text(
+                      '${e.key}: ${e.value}',
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+        const SizedBox(height: 4),
+        Text(
+          errorPreview,
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 10,
+            color: Colors.red,
+          ),
+        ),
+        if (_expanded) ...[
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: SelectableText(
+              r.stackTrace.toString(),
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 9,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

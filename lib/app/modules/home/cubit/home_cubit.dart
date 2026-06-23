@@ -18,6 +18,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../data/core/utils/helpers.dart';
 import '../../../data/models/respondent_load_result.dart';
+import '../../../data/services/app_error_logger.dart';
 import 'home_side_effect.dart';
 import 'home_state.dart';
 
@@ -53,7 +54,8 @@ class _LoadDone {
 
 class _LoadError {
   final String message;
-  const _LoadError(this.message);
+  final String stackTrace;
+  const _LoadError(this.message, this.stackTrace);
 }
 
 void _loadRecordsEntry(_LoadArgs args) async {
@@ -66,8 +68,8 @@ void _loadRecordsEntry(_LoadArgs args) async {
       onRecord: (record, meta) => args.sendPort.send(_LoadRecord(record, meta)),
     );
     args.sendPort.send(_LoadDone(result.envJson));
-  } catch (e) {
-    args.sendPort.send(_LoadError(e.toString()));
+  } catch (e, st) {
+    args.sendPort.send(_LoadError(e.toString(), st.toString()));
   }
 }
 
@@ -86,6 +88,7 @@ class HomeCubit extends Cubit<HomeState> {
 
   Isolate? _loadIsolate;
   ReceivePort? _loadPort;
+  Timer? _stallTimer;
 
   List<FasihTemplate> _availableTemplates = [];
   List<FasihTemplate> get availableTemplates => _availableTemplates;
@@ -135,7 +138,18 @@ class HomeCubit extends Cubit<HomeState> {
         respondentMeta: result.meta,
         envJson: result.envJson,
       ));
-    } catch (_) {
+    } catch (e, st) {
+      AppErrorLogger.instance.log(
+        e,
+        st,
+        context: {
+          'operasi': 'restoreLastSession',
+          if (_settings.lastZipName != null)
+            'nama_backup': _settings.lastZipName!,
+          if (_settings.lastTemplateId != null)
+            'id_template': _settings.lastTemplateId!,
+        },
+      );
       _extractedDir = null;
       _availableTemplates = [];
       await _settings.clearLastSession();
@@ -204,7 +218,9 @@ class HomeCubit extends Cubit<HomeState> {
         emit(HomeMultiTemplate(file: file, templates: _availableTemplates));
         _sideEffectsController.add(ShowTemplatePicker(_availableTemplates));
       }
-    } catch (e) {
+    } catch (e, st) {
+      AppErrorLogger.instance
+          .log(e, st, context: {'operasi': 'pickAndLoadBackup'});
       _sideEffectsController.add(ShowSnackbar(
         title: 'Kesalahan',
         message: e.toString(),
@@ -258,7 +274,19 @@ class HomeCubit extends Cubit<HomeState> {
           loadedAt: DateTime.now(),
         ),
       );
-    } catch (e) {
+    } catch (e, st) {
+      AppErrorLogger.instance.log(
+        e,
+        st,
+        context: {
+          'operasi': 'loadTemplate',
+          'nama_backup': file.name,
+          'ukuran_backup': '${file.size} bytes',
+          'nama_template': template.title,
+          'id_template': template.id,
+          'jumlah_kolom': '${template.fields.length}',
+        },
+      );
       _sideEffectsController.add(ShowSnackbar(
         title: 'Kesalahan',
         message: e.toString(),
@@ -295,7 +323,19 @@ class HomeCubit extends Cubit<HomeState> {
         title: 'Berhasil!',
         message: 'File Excel berhasil disimpan.',
       ));
-    } catch (e) {
+    } catch (e, st) {
+      AppErrorLogger.instance.log(
+        e,
+        st,
+        context: {
+          'operasi': 'exportToExcel',
+          'nama_backup': current.file.name,
+          'nama_template': current.template.title,
+          'id_template': current.template.id,
+          'jumlah_responden': '${current.records.length}',
+          'jumlah_kolom': '${current.template.fields.length}',
+        },
+      );
       _sideEffectsController.add(ShowSnackbar(
         title: 'Gagal Ekspor',
         message: e.toString(),
@@ -345,7 +385,19 @@ class HomeCubit extends Cubit<HomeState> {
       workbook.dispose();
 
       _sideEffectsController.add(ShowImportSuccess(outFile.path));
-    } catch (e) {
+    } catch (e, st) {
+      AppErrorLogger.instance.log(
+        e,
+        st,
+        context: {
+          'operasi': 'importFromExcel',
+          'nama_backup': current.file.name,
+          'nama_template': current.template.title,
+          'id_template': current.template.id,
+          'jumlah_responden': '${current.records.length}',
+          'jumlah_kolom': '${current.template.fields.length}',
+        },
+      );
       _sideEffectsController.add(ShowSnackbar(
         title: 'Gagal Import',
         message: e.toString(),
@@ -407,7 +459,19 @@ class HomeCubit extends Cubit<HomeState> {
         title: 'Berhasil!',
         message: 'Data berhasil diupload ke Google Sheets.',
       ));
-    } catch (e) {
+    } catch (e, st) {
+      AppErrorLogger.instance.log(
+        e,
+        st,
+        context: {
+          'operasi': 'uploadToSheets',
+          'nama_backup': current.file.name,
+          'nama_template': current.template.title,
+          'id_template': current.template.id,
+          'jumlah_responden': '${current.records.length}',
+          'jumlah_kolom': '${current.template.fields.length}',
+        },
+      );
       _sideEffectsController.add(ShowSnackbar(
         title: 'Gagal Upload',
         message: e.toString(),
@@ -457,7 +521,17 @@ class HomeCubit extends Cubit<HomeState> {
         PlatformFile(name: entry.zipName, size: entry.zipSize),
         template,
       );
-    } catch (e) {
+    } catch (e, st) {
+      AppErrorLogger.instance.log(
+        e,
+        st,
+        context: {
+          'operasi': 'loadFromHistory',
+          'nama_backup': entry.zipName,
+          'id_template': entry.templateId,
+          'nama_template': entry.templateTitle,
+        },
+      );
       _extractedDir = null;
       _availableTemplates = [];
       emit(const HomeInitial());
@@ -506,13 +580,29 @@ class HomeCubit extends Cubit<HomeState> {
 
     port.listen((msg) {
       if (msg is _LoadProgress) {
+        _stallTimer?.cancel();
         if (!isClosed) {
           emit(HomeLoadingFile(loaded: msg.loaded, total: msg.total));
         }
+        // If no progress update for 500 ms the isolate is still finalising
+        // (e.g. building envJson). Show a subtitle so the user knows the app
+        // isn't frozen.
+        _stallTimer = Timer(const Duration(milliseconds: 500), () {
+          if (isClosed) return;
+          final s = state;
+          if (s is HomeLoadingFile && s.subtitle == null) {
+            emit(HomeLoadingFile(
+              loaded: s.loaded,
+              total: s.total,
+              subtitle: 'Menyiapkan data, harap tunggu...',
+            ));
+          }
+        });
       } else if (msg is _LoadRecord) {
         records.add(msg.record);
         metas.add(msg.meta);
       } else if (msg is _LoadDone) {
+        _stallTimer?.cancel();
         port.close();
         _loadPort = null;
         _loadIsolate = null;
@@ -524,9 +614,20 @@ class HomeCubit extends Cubit<HomeState> {
           ));
         }
       } else if (msg is _LoadError) {
+        _stallTimer?.cancel();
         port.close();
         _loadPort = null;
         _loadIsolate = null;
+        AppErrorLogger.instance.log(
+          msg.message,
+          StackTrace.fromString(msg.stackTrace),
+          context: {
+            'operasi': 'loadRecords',
+            'template_nama': template.title,
+            'id_template': template.id,
+            'jumlah_kolom': '${template.fields.length}',
+          },
+        );
         if (!completer.isCompleted) completer.completeError(msg.message);
       }
     });
@@ -542,6 +643,7 @@ class HomeCubit extends Cubit<HomeState> {
 
   @override
   Future<void> close() {
+    _stallTimer?.cancel();
     _loadPort?.close();
     _loadIsolate?.kill(priority: Isolate.immediate);
     _sideEffectsController.close();
