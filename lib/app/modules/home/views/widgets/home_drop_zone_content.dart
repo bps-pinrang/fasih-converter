@@ -66,10 +66,27 @@ class HomeDropZoneContent extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  loaded.file.name,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        loaded.file.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: cubit.pickAndLoadBackup,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        minimumSize: const Size(0, 0),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        textStyle: const TextStyle(fontSize: 11),
+                        foregroundColor: Colors.blueAccent,
+                      ),
+                      child: const Text('Ganti Berkas'),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text('Ukuran: ${filesize(loaded.file.size)}'),
@@ -94,7 +111,7 @@ class HomeDropZoneContent extends StatelessWidget {
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           textStyle: const TextStyle(fontSize: 11),
                         ),
-                        child: const Text('Ganti'),
+                        child: const Text('Ganti Survey'),
                       ),
                     ],
                   ],

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -23,23 +24,52 @@ class FasihBackupReader {
     'backup'
   };
 
-  Future<Directory> extractZip(File zipFile) async {
+  Future<Directory> extractZip(
+    File zipFile, {
+    void Function(int current, int total)? onProgress,
+  }) async {
     final appDir = await getApplicationDocumentsDirectory();
     final name = p.basenameWithoutExtension(zipFile.path);
     final dest = Directory(p.join(appDir.path, name));
     if (await dest.exists()) await dest.delete(recursive: true);
     await dest.create(recursive: true);
 
-    final bytes = await zipFile.readAsBytes();
-    final archive = ZipDecoder().decodeBytes(bytes);
-    for (final entry in archive) {
-      final entryPath = _sanitizePath(entry.name);
-      if (entryPath == null) continue;
-      if (entry.isFile) {
-        final outFile = File(p.join(dest.path, entryPath));
-        await outFile.parent.create(recursive: true);
-        await outFile.writeAsBytes(entry.content as List<int>);
+    // Stream from disk entry-by-entry; never loads the full archive into RAM.
+    final inputStream = InputFileStream(zipFile.path);
+    try {
+      final archive = ZipDecoder().decodeStream(inputStream);
+      final total = archive.length;
+      var current = 0;
+      // Throttle to ~1% steps so we don't spam emit on large archives.
+      final step = (total / 100).ceil().clamp(1, total.clamp(1, total));
+      var lastReported = 0;
+
+      for (final entry in archive) {
+        final entryPath = _sanitizePath(entry.name);
+        if (entryPath == null) {
+          current++;
+          continue;
+        }
+        if (entry.isFile) {
+          final outFile = File(p.join(dest.path, entryPath));
+          await outFile.parent.create(recursive: true);
+          final outStream = OutputFileStream(outFile.path);
+          try {
+            entry.writeContent(outStream);
+          } finally {
+            await outStream.close();
+          }
+        }
+        current++;
+        if (onProgress != null &&
+            (current == total || current - lastReported >= step)) {
+          lastReported = current;
+          onProgress(current, total);
+        }
       }
+      await archive.clear();
+    } finally {
+      await inputStream.close();
     }
     return dest;
   }
@@ -107,13 +137,22 @@ class FasihBackupReader {
     }
   }
 
+  /// Loads records for [template] from [backupDir].
+  ///
+  /// When [onRecord] is provided each parsed record/meta pair is delivered via
+  /// callback as soon as it is ready; the returned [RespondentLoadResult] will
+  /// have empty [records] and [meta] lists (the caller owns accumulation).
+  /// When [onRecord] is null, accumulation happens here and the full lists are
+  /// returned in the result.
   Future<RespondentLoadResult> loadRecords(
     Directory backupDir,
     FasihTemplate template, {
     void Function(int loaded, int total)? onProgress,
+    void Function(FasihRecord record, RespondentMeta meta)? onRecord,
   }) async {
-    final records = <FasihRecord>[];
-    final meta = <RespondentMeta>[];
+    final records = onRecord != null ? null : <FasihRecord>[];
+    final meta = onRecord != null ? null : <RespondentMeta>[];
+    var loadedCount = 0;
 
     // First pass: collect all respondent tasks so we know the total upfront.
     final tasks =
@@ -147,8 +186,9 @@ class FasihBackupReader {
     }
 
     // Second pass: process each task, firing onProgress after every record.
-    // We don't know the total upfront (some data.json files fail validation),
-    // so total is reported as 0 (indeterminate) and the UI shows a count.
+    // Total is reported as 0 (indeterminate) because tasks.length equals
+    // top-level directories — in old-format backups one directory can yield
+    // many respondents, so using it as a total would show values > 100%.
     for (final t in tasks) {
       await _loadRespondent(
         respUuid: t.respUuid,
@@ -157,8 +197,9 @@ class FasihBackupReader {
         template: template,
         records: records,
         meta: meta,
+        onRecord: onRecord,
         onRecordAdded:
-            onProgress != null ? () => onProgress(records.length, 0) : null,
+            onProgress != null ? () => onProgress(++loadedCount, 0) : null,
       );
     }
 
@@ -168,7 +209,11 @@ class FasihBackupReader {
     final envJson =
         await envFile.exists() ? await envFile.readAsString() : '[]';
 
-    return RespondentLoadResult(records: records, meta: meta, envJson: envJson);
+    return RespondentLoadResult(
+      records: records ?? [],
+      meta: meta ?? [],
+      envJson: envJson,
+    );
   }
 
   Future<bool> _isSessionFormat(Directory answersDir) async {
@@ -192,8 +237,9 @@ class FasihBackupReader {
     required Directory searchDir,
     required Directory answersBaseDir,
     required FasihTemplate template,
-    required List<FasihRecord> records,
-    required List<RespondentMeta> meta,
+    List<FasihRecord>? records,
+    List<RespondentMeta>? meta,
+    void Function(FasihRecord, RespondentMeta)? onRecord,
     void Function()? onRecordAdded,
   }) async {
     final fieldKeys = template.fields.map((f) => f.dataKey).toSet();
@@ -203,24 +249,92 @@ class FasihBackupReader {
       final rawJson = await entity.readAsString();
       final map = await _decodeJson(rawJson);
       if (map == null) continue;
+
+      // Only read reference.json when data.json is missing field keys.
+      // For surveys where data.json covers everything (e.g. SAK), this skips
+      // the 1.9 MB file read entirely.
+      final dataKeys = _extractAnswerKeys(map);
+      final missingKeys =
+          fieldKeys.isEmpty ? <String>{} : fieldKeys.difference(dataKeys);
+
+      Map<String, dynamic>? referenceMap;
+      if (missingKeys.isNotEmpty) {
+        final refFile = File(p.join(entity.parent.path, 'reference.json'));
+        if (await refFile.exists()) {
+          referenceMap = parseReferenceJson(
+            await refFile.readAsString(),
+            onlyKeys: missingKeys,
+          );
+        }
+      }
+
       final parsed = _recordFromMap(
         map,
         templateId: template.id,
         templateDataKey: template.dataKey,
         fieldKeys: fieldKeys,
+        referenceMap: referenceMap,
       );
       if (parsed == null) continue;
-      records.add(parsed);
-      // Store envelope only (no answers) — answers are in the data sheet.
+
       final envelope = Map<String, dynamic>.from(map)..remove(kColumnAnswers);
-      meta.add(
-        RespondentMeta(
-          respUuid: respUuid,
-          answersRelPath: relPath,
-          rawDataJson: jsonEncode(envelope),
-        ),
+      final metaEntry = RespondentMeta(
+        respUuid: respUuid,
+        answersRelPath: relPath,
+        rawDataJson: jsonEncode(envelope),
       );
+
+      if (onRecord != null) {
+        onRecord(parsed, metaEntry);
+      } else {
+        records!.add(parsed);
+        meta!.add(metaEntry);
+      }
       onRecordAdded?.call();
+    }
+  }
+
+  /// Extracts the set of dataKey values from a data.json answer list.
+  Set<String> _extractAnswerKeys(Map<String, dynamic> map) {
+    final answersRaw = map[kColumnAnswers];
+    if (answersRaw is! List) return {};
+    final keys = <String>{};
+    for (final item in answersRaw) {
+      if (item is! Map<String, dynamic>) continue;
+      final key = item[kColumnDataKey] as String?;
+      if (key != null) keys.add(key);
+    }
+    return keys;
+  }
+
+  /// Parses a reference.json string into a {dataKey: answer} map.
+  ///
+  /// When [onlyKeys] is provided, only entries whose dataKey is in the set are
+  /// included — avoids building a large map when only a subset is needed.
+  /// Returns an empty map on any error or missing/invalid content.
+  @visibleForTesting
+  static Map<String, dynamic> parseReferenceJson(
+    String raw, {
+    Set<String>? onlyKeys,
+  }) {
+    try {
+      final root = jsonDecode(raw) as Map<String, dynamic>;
+      final details = root['details'];
+      if (details is! List) return {};
+      final result = <String, dynamic>{};
+      for (final item in details) {
+        if (item is! Map<String, dynamic>) continue;
+        final key = item['dataKey'] as String?;
+        if (key == null || key.isEmpty) continue;
+        if (onlyKeys != null && !onlyKeys.contains(key)) continue;
+        final answer = item['answer'];
+        if (answer == null) continue;
+        if (answer is String && answer.isEmpty) continue;
+        result[key] = answer;
+      }
+      return result;
+    } catch (_) {
+      return {};
     }
   }
 
@@ -245,12 +359,16 @@ class FasihBackupReader {
     String? templateId,
     String? templateDataKey,
     Set<String>? fieldKeys,
+    Map<String, dynamic>? referenceMap,
   }) {
     try {
       // Reject if the file declares a templateId/dataKey that does not match.
-      // Files with neither field present are accepted (legacy backups).
+      // Files with neither field present are accepted (legacy backups) but are
+      // subject to the cross-template key-overlap guard below.
       final fileTemplateId = map[kColumnTemplateId] as String?;
       final fileDataKey = map[kColumnTemplateDataKey] as String?;
+      final isLegacy = (fileTemplateId == null || fileTemplateId.isEmpty) &&
+          (fileDataKey == null || fileDataKey.isEmpty);
       if (fileTemplateId != null && fileTemplateId.isNotEmpty) {
         if (templateId != null && fileTemplateId != templateId) return null;
       } else if (fileDataKey != null && fileDataKey.isNotEmpty) {
@@ -270,18 +388,51 @@ class FasihBackupReader {
         values[key] = FasihRecord.extractAnswer(item[kColumnAnswer]);
       }
 
-      // Cross-template guard: if the file has answers but none of its keys
-      // match this template's fields, it belongs to a different survey.
-      if (fieldKeys != null &&
+      // Fill gaps from reference.json (data.json always wins).
+      if (referenceMap != null) {
+        for (final entry in referenceMap.entries) {
+          if (!values.containsKey(entry.key)) {
+            values[entry.key] = FasihRecord.extractAnswer(entry.value);
+          }
+        }
+      }
+
+      // Cross-template guard: only for legacy records (no declared templateId /
+      // templateDataKey). Require that at least 20 % of the record's answer
+      // keys are recognised field keys of this template.  A single shared
+      // generic key (prov / kab / desa) is not sufficient — it would
+      // incorrectly accept records from co-active surveys (e.g. SE2026,
+      // VHTS) whose location fields happen to overlap with this template.
+      if (isLegacy &&
+          fieldKeys != null &&
           fieldKeys.isNotEmpty &&
-          values.isNotEmpty &&
-          !values.keys.any(fieldKeys.contains)) {
-        return null;
+          values.isNotEmpty) {
+        final matchCount = values.keys.where(fieldKeys.contains).length;
+        final minMatch = (values.length * 0.20).ceil();
+        if (matchCount < minMatch) return null;
       }
 
       return FasihRecord(values);
     } catch (_) {
       return null;
     }
+  }
+
+  /// Public wrapper for testing the record-building logic.
+  @visibleForTesting
+  static FasihRecord? buildRecordFromMaps(
+    Map<String, dynamic> dataMap, {
+    Map<String, dynamic>? referenceMap,
+    String? templateId,
+    String? templateDataKey,
+    Set<String>? fieldKeys,
+  }) {
+    return FasihBackupReader()._recordFromMap(
+      dataMap,
+      templateId: templateId,
+      templateDataKey: templateDataKey,
+      fieldKeys: fieldKeys,
+      referenceMap: referenceMap,
+    );
   }
 }

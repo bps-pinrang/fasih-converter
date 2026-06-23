@@ -14,11 +14,13 @@ class HomeInitial extends HomeState {
 class HomeLoadingFile extends HomeState {
   final int loaded;
   final int total;
+  final String? subtitle;
 
-  const HomeLoadingFile({this.loaded = 0, this.total = 0});
+  const HomeLoadingFile({this.loaded = 0, this.total = 0, this.subtitle});
 
   double? get progress => total > 0 ? loaded / total : null;
   String get label {
+    if (subtitle != null) return subtitle!;
     if (total > 0) return '$loaded / $total responden';
     if (loaded > 0) return 'Memuat $loaded responden...';
     return 'Memuat data...';
