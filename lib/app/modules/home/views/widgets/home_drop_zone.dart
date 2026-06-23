@@ -21,16 +21,26 @@ class HomeDropZone extends StatelessWidget {
         elevation: 0,
         color: const Color(0xFFDEDEDE).withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: context.read<HomeCubit>().pickAndLoadBackup,
-          child: const SizedBox(
-            width: double.infinity,
-            height: 100,
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-              child: BlocBuilder<HomeCubit, HomeState>(
-                builder: _buildContent,
+        child: BlocBuilder<HomeCubit, HomeState>(
+          builder: (context, state) => InkWell(
+            borderRadius: BorderRadius.circular(12),
+            // Only trigger file picker when no file is loaded.
+            // When loaded, the card is informational; file/survey changes
+            // happen via the buttons inside the card.
+            onTap: state is HomeFileLoaded
+                ? null
+                : context.read<HomeCubit>().pickAndLoadBackup,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 100),
+              child: SizedBox(
+                width: double.infinity,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 16,
+                  ),
+                  child: HomeDropZoneContent(state: state),
+                ),
               ),
             ),
           ),
@@ -38,7 +48,4 @@ class HomeDropZone extends StatelessWidget {
       ),
     );
   }
-
-  static Widget _buildContent(BuildContext context, HomeState state) =>
-      HomeDropZoneContent(state: state);
 }

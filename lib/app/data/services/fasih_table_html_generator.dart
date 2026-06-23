@@ -1,41 +1,31 @@
+import 'dart:convert';
+
 import '../models/fasih_record.dart';
 import '../models/fasih_template.dart';
 
 class FasihTableHtmlGenerator {
-  static String generate(
-    FasihTemplate template,
+  /// Generates a full-page HTML document with lazy row rendering.
+  ///
+  /// Data is embedded as a compact JSON array and rows are appended to the
+  /// DOM 100 at a time via IntersectionObserver, so the initial render is fast
+  /// regardless of dataset size (avoids creating 200K+ DOM nodes upfront).
+  static String generateFullPage(
+    List<FasihTemplateField> fields,
     List<FasihRecord> records,
   ) {
-    final fields = template.fields;
-    final buffer = StringBuffer();
-
-    buffer.writeln('<table id="_table">');
-    buffer.writeln('<thead><tr>');
-    buffer.writeln('<th>#</th>');
+    final thead = StringBuffer('<tr><th>#</th>');
     for (final f in fields) {
-      final label = _esc(f.label);
-      buffer.writeln('<th>$label</th>');
+      thead.write('<th>${_esc(f.label)}</th>');
     }
-    buffer.writeln('</tr></thead>');
+    thead.write('</tr>');
 
-    buffer.writeln('<tbody>');
-    for (var i = 0; i < records.length; i++) {
-      final record = records[i];
-      buffer.writeln('<tr>');
-      buffer.writeln('<td class="num">${i + 1}</td>');
-      for (final f in fields) {
-        final value = _esc(record[f.dataKey]);
-        buffer.writeln('<td>$value</td>');
-      }
-      buffer.writeln('</tr>');
-    }
-    buffer.writeln('</tbody>');
-    buffer.writeln('</table>');
+    // Build compact JSON — all values are already strings, no HTML escaping
+    // needed for cell values because JS uses textContent (not innerHTML).
+    // Escape "</" to prevent "</script>" from breaking the HTML parser.
+    final rows =
+        records.map((r) => fields.map((f) => r[f.dataKey]).toList()).toList();
+    final dataJson = jsonEncode(rows).replaceAll('</', r'<\/');
 
-    return buffer.toString();
-  }
-
-  static String wrapWithStyling(String tableHtml, int recordCount) {
     return '''<!DOCTYPE html>
 <html>
 <head>
@@ -45,31 +35,70 @@ class FasihTableHtmlGenerator {
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
          font-size: 12px; background: #fff; }
-  .wrapper { overflow-x: auto; width: 100%; }
-  table { border-collapse: collapse; white-space: nowrap; min-width: 100%; }
-  thead tr { background: #0077EF; color: #fff; position: sticky; top: 0; z-index: 1; }
+  table { border-collapse: separate; border-spacing: 0; white-space: nowrap; }
+  thead { position: relative; z-index: 1; will-change: transform; }
   th { padding: 8px 10px; text-align: left; font-weight: 600;
-       border-right: 1px solid rgba(255,255,255,0.2); }
+       background: #0077EF; color: #fff;
+       border-right: 1px solid rgba(255,255,255,0.2);
+       border-bottom: 2px solid rgba(255,255,255,0.3); }
   td { padding: 6px 10px; border-bottom: 1px solid #e5e7eb;
        border-right: 1px solid #e5e7eb; color: #374151; }
   td.num { color: #9ca3af; text-align: right; user-select: none; }
-  tr:nth-child(even) { background: #f9fafb; }
-  tr:hover { background: #eff6ff; }
+  tbody tr:nth-child(even) { background: #f9fafb; }
+  tbody tr:hover { background: #eff6ff; }
+  #load-status { text-align: center; padding: 12px; color: #6b7280; font-size: 11px; }
 </style>
 </head>
 <body>
-<div class="wrapper" id="_flutter_target_do_not_delete">
-$tableHtml
-</div>
+<table>
+  <thead id="thead">${thead.toString()}</thead>
+  <tbody id="tbody"></tbody>
+</table>
+<div id="load-status"></div>
+<div id="sentinel"></div>
 <script>
-  function reportHeight() {
-    var h = document.getElementById("_flutter_target_do_not_delete").scrollHeight;
-    console.log(h);
+var DATA = $dataJson;
+var PAGE = 100;
+var loaded = 0;
+function loadRows() {
+  if (loaded >= DATA.length) {
+    document.getElementById('load-status').textContent =
+      'Menampilkan semua ' + DATA.length + ' baris';
+    document.getElementById('sentinel').style.display = 'none';
+    return;
   }
-  new ResizeObserver(reportHeight).observe(
-    document.getElementById("_flutter_target_do_not_delete")
-  );
-  reportHeight();
+  var tbody = document.getElementById('tbody');
+  var end = Math.min(loaded + PAGE, DATA.length);
+  var frag = document.createDocumentFragment();
+  for (var i = loaded; i < end; i++) {
+    var tr = document.createElement('tr');
+    var numTd = document.createElement('td');
+    numTd.className = 'num';
+    numTd.textContent = String(i + 1);
+    tr.appendChild(numTd);
+    for (var j = 0; j < DATA[i].length; j++) {
+      var td = document.createElement('td');
+      td.textContent = DATA[i][j];
+      tr.appendChild(td);
+    }
+    frag.appendChild(tr);
+  }
+  tbody.appendChild(frag);
+  loaded = end;
+  document.getElementById('load-status').textContent =
+    'Menampilkan ' + loaded + ' dari ' + DATA.length + ' baris';
+}
+loadRows();
+var obs = new IntersectionObserver(function(entries) {
+  if (entries[0].isIntersecting && loaded < DATA.length) loadRows();
+}, { rootMargin: '200px' });
+obs.observe(document.getElementById('sentinel'));
+// Pin header: translateY offsets the scroll so thead stays at viewport top.
+// More reliable than position:sticky inside a WebView's native scroll container.
+var theadEl = document.getElementById('thead');
+window.addEventListener('scroll', function() {
+  theadEl.style.transform = 'translateY(' + window.scrollY + 'px)';
+}, { passive: true });
 </script>
 </body>
 </html>''';

@@ -4,6 +4,7 @@ import 'package:line_icons/line_icons.dart';
 
 import '../../cubit/home_cubit.dart';
 import '../../cubit/home_state.dart';
+import '../table_view.dart';
 
 class HomeActionRow extends StatelessWidget {
   const HomeActionRow({super.key});
@@ -125,6 +126,31 @@ class HomeActionRow extends StatelessWidget {
                 ),
               ],
             ),
+            if (hasData) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => TableView(
+                        template: loaded.template,
+                        records: loaded.records,
+                      ),
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.indigo.shade400,
+                    foregroundColor: Colors.white,
+                    side: BorderSide.none,
+                  ),
+                  icon: const Icon(Icons.table_rows_outlined, size: 18),
+                  label: Text(
+                    'Lihat Tabel (${loaded.records.length} baris)',
+                  ),
+                ),
+              ),
+            ],
           ],
         );
       },

@@ -18,7 +18,6 @@ import '../cubit/home_state.dart';
 import 'debug_view.dart';
 import 'history_page.dart';
 import 'widgets/home_action_row.dart';
-import 'widgets/home_data_table.dart';
 import 'widgets/home_drop_zone.dart';
 
 @RoutePage()
@@ -112,38 +111,42 @@ class _HomeViewState extends State<HomeView> {
         initialChildSize: 0.5,
         minChildSize: 0.3,
         maxChildSize: 0.9,
-        builder: (_, scrollController) => Container(
-          decoration: const BoxDecoration(
+        builder: (_, scrollController) => ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          child: Material(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Pilih Survey',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  itemCount: templates.length,
-                  itemBuilder: (_, i) {
-                    final t = templates[i];
-                    return ListTile(
-                      title: Text(t.title),
-                      subtitle: Text('${t.fields.length} kolom · ${t.dataKey}'),
-                      onTap: () {
-                        Navigator.of(sheetContext).pop();
-                        _cubit.selectTemplate(t);
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Pilih Survey',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      itemCount: templates.length,
+                      itemBuilder: (_, i) {
+                        final t = templates[i];
+                        return ListTile(
+                          title: Text(t.title),
+                          subtitle: Text(
+                            '${t.fields.length} kolom · ${t.dataKey}',
+                          ),
+                          onTap: () {
+                            Navigator.of(sheetContext).pop();
+                            _cubit.selectTemplate(t);
+                          },
+                        );
                       },
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -214,8 +217,6 @@ class _HomeViewState extends State<HomeView> {
               const HomeDropZone(),
               const SizedBox(height: 16),
               const HomeActionRow(),
-              const SizedBox(height: 16),
-              const HomeDataTable(),
             ],
           ),
         ),
