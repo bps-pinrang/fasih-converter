@@ -1,5 +1,5 @@
 name: json_converter
-version: 2.1.0+11
+version: 2.2.0+12
 publish_to: none
 description: Fasih Converter - Generic FASIH backup to Excel/Sheets
 
@@ -24,7 +24,7 @@ dependencies:
   url_launcher: ^6.3.2
   package_info_plus: ^10.1.0
   line_icons: ^2.0.3
-  syncfusion_flutter_xlsio: ^33.2.13
+  syncfusion_flutter_xlsio: ^33.2.13+1
   share_plus: ^13.1.0
   percent_indicator: ^4.2.5
   permission_handler: ^12.0.3
