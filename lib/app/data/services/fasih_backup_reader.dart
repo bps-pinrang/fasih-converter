@@ -11,8 +11,8 @@ import '../core/values/strings.dart';
 import '../models/fasih_record.dart';
 import '../models/fasih_template.dart';
 import '../models/respondent_load_result.dart';
-import 'fasih_decryptor.dart';
 import 'fasih_backup_writer.dart';
+import 'fasih_encryption_helper.dart';
 
 @singleton
 class FasihBackupReader {
@@ -149,6 +149,7 @@ class FasihBackupReader {
     FasihTemplate template, {
     void Function(int loaded, int total)? onProgress,
     void Function(FasihRecord record, RespondentMeta meta)? onRecord,
+    Map<String, String> wrappedDataKeys = const {},
   }) async {
     final records = onRecord != null ? null : <FasihRecord>[];
     final meta = onRecord != null ? null : <RespondentMeta>[];
@@ -198,6 +199,7 @@ class FasihBackupReader {
         records: records,
         meta: meta,
         onRecord: onRecord,
+        wrappedDataKeys: wrappedDataKeys,
         onRecordAdded:
             onProgress != null ? () => onProgress(++loadedCount, 0) : null,
       );
@@ -222,11 +224,11 @@ class FasihBackupReader {
       try {
         final raw = await entity.readAsString();
         final map = await _decodeJson(raw);
-        if (map == null) return false;
+        if (map == null) continue; // encrypted — try next file
         final tid = map[kColumnTemplateId];
         return tid != null && (tid as String).isNotEmpty;
       } catch (_) {
-        return false;
+        continue;
       }
     }
     return false;
@@ -241,13 +243,18 @@ class FasihBackupReader {
     List<RespondentMeta>? meta,
     void Function(FasihRecord, RespondentMeta)? onRecord,
     void Function()? onRecordAdded,
+    Map<String, String> wrappedDataKeys = const {},
   }) async {
     final fieldKeys = template.fields.map((f) => f.dataKey).toSet();
     await for (final entity in searchDir.list(recursive: true)) {
       if (entity is! File || p.basename(entity.path) != 'data.json') continue;
       final relPath = p.relative(entity.parent.path, from: answersBaseDir.path);
       final rawJson = await entity.readAsString();
-      final map = await _decodeJson(rawJson);
+      // In v2.16.3 the path is …/answers/{periodUUID}/{blockUUID}/{respUUID}/data.json;
+      // blockUUID == regionId used as the wrappedDataKeys lookup key.
+      final blockUuid = p.basename(entity.parent.parent.path);
+      final wrappedDataKey = wrappedDataKeys[blockUuid];
+      final map = await _decodeJson(rawJson, wrappedDataKey: wrappedDataKey);
       if (map == null) continue;
 
       // Only read reference.json when data.json is missing field keys.
@@ -340,11 +347,17 @@ class FasihBackupReader {
 
   /// Parses [raw] as JSON, transparently decrypting if needed.
   /// Returns null when the content is unreadable.
-  Future<Map<String, dynamic>?> _decodeJson(String raw) async {
+  Future<Map<String, dynamic>?> _decodeJson(
+    String raw, {
+    String? wrappedDataKey,
+  }) async {
     try {
       return jsonDecode(raw) as Map<String, dynamic>;
     } catch (_) {
-      final decrypted = FasihDecryptor.tryDecrypt(raw);
+      final decrypted = FasihEncryptionHelper.tryDecrypt(
+        raw,
+        wrappedDataKey: wrappedDataKey,
+      );
       if (decrypted == null) return null;
       try {
         return jsonDecode(decrypted) as Map<String, dynamic>;
