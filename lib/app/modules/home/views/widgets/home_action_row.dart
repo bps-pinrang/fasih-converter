@@ -1,13 +1,89 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:line_icons/line_icons.dart';
 
+import '../../../../data/repositories/fasih_auth_repository.dart';
+import '../../../../data/repositories/fasih_server_repository.dart';
+import '../../../../data/services/fasih_backup_reader.dart';
+import '../../../../di/injection.dart';
+import '../../../../router/app_router.dart';
 import '../../cubit/home_cubit.dart';
 import '../../cubit/home_state.dart';
 import '../table_view.dart';
 
 class HomeActionRow extends StatelessWidget {
   const HomeActionRow({super.key});
+
+  static Future<void> _ambilDariServer(
+    BuildContext context,
+    HomeCubit cubit,
+  ) async {
+    final auth = getIt<FasihAuthRepository>();
+    if (!auth.isLoggedIn) {
+      final loggedIn = await context.pushRoute<bool>(const LoginRoute());
+      if (loggedIn != true || !context.mounted) return;
+    }
+    if (!context.mounted) return;
+
+    final dir = cubit.extractedDir;
+    if (dir == null) {
+      // No backup loaded — let user pick a period manually.
+      final keyMap = await context.pushRoute<Map<String, String>>(
+        const ServerSourceRoute(),
+      );
+      if (keyMap == null || keyMap.isEmpty || !context.mounted) return;
+      await cubit.reloadWithKeyMap(keyMap);
+      return;
+    }
+
+    // Backup is loaded: auto-discover periods and fetch keys.
+    final periodIds = await FasihBackupReader().discoverPeriodIds(dir);
+    if (!context.mounted) return;
+
+    if (periodIds.isEmpty) {
+      final keyMap = await context.pushRoute<Map<String, String>>(
+        const ServerSourceRoute(),
+      );
+      if (keyMap == null || keyMap.isEmpty || !context.mounted) return;
+      await cubit.reloadWithKeyMap(keyMap);
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Mengambil kunci untuk ${periodIds.length} periode dari server...',
+        ),
+        duration: const Duration(seconds: 10),
+      ),
+    );
+
+    final repo = getIt<FasihServerRepository>();
+    final combinedKeyMap = <String, String>{};
+    for (final periodId in periodIds) {
+      try {
+        final result = await repo.fetchAssignmentsWithKeys(periodId);
+        combinedKeyMap.addAll(result.keyMap);
+      } catch (_) {
+        // continue with remaining periods
+      }
+    }
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    if (combinedKeyMap.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tidak ada kunci enkripsi ditemukan di server.'),
+        ),
+      );
+      return;
+    }
+
+    await cubit.reloadWithKeyMap(combinedKeyMap);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +224,20 @@ class HomeActionRow extends StatelessWidget {
                   label: Text(
                     'Lihat Tabel (${loaded.records.length} baris)',
                   ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _ambilDariServer(context, cubit),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple.shade400,
+                    foregroundColor: Colors.white,
+                    side: BorderSide.none,
+                  ),
+                  icon: const Icon(Icons.cloud_download_outlined, size: 18),
+                  label: const Text('Ambil Kunci dari Server'),
                 ),
               ),
             ],

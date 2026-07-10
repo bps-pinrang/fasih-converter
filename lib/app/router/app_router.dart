@@ -1,6 +1,8 @@
 import 'package:auto_route/auto_route.dart';
 
+import '../modules/auth/views/login_view.dart';
 import '../modules/home/views/home_view.dart';
+import '../modules/server_source/views/server_source_view.dart';
 import '../modules/settings/views/settings_view.dart';
 
 part 'app_router.gr.dart';
@@ -11,5 +13,7 @@ class AppRouter extends RootStackRouter {
   List<AutoRoute> get routes => [
         AutoRoute(page: HomeRoute.page, initial: true),
         AutoRoute(page: SettingsRoute.page),
+        AutoRoute(page: LoginRoute.page),
+        AutoRoute(page: ServerSourceRoute.page),
       ];
 }

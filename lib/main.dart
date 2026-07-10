@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:json_converter/app/data/core/debug/alice_inspector.dart';
 import 'package:json_converter/app/di/injection.dart';
 import 'package:json_converter/app/router/app_router.dart';
 
@@ -17,6 +18,12 @@ class App extends StatefulWidget {
 
 class _AppState extends State<App> {
   final _router = AppRouter();
+
+  @override
+  void initState() {
+    super.initState();
+    initAliceNavigatorKey(_router.navigatorKey);
+  }
 
   @override
   Widget build(BuildContext context) {

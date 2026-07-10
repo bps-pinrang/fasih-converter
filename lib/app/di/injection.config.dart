@@ -13,13 +13,24 @@ import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 import 'package:json_converter/app/data/providers/fasih_converter_sheet_api.dart'
     as _i183;
+import 'package:json_converter/app/data/providers/fasih_survey_api.dart'
+    as _i443;
+import 'package:json_converter/app/data/repositories/fasih_auth_repository.dart'
+    as _i3;
+import 'package:json_converter/app/data/repositories/fasih_server_repository.dart'
+    as _i312;
 import 'package:json_converter/app/data/repositories/settings_repository.dart'
     as _i55;
+import 'package:json_converter/app/data/services/device_id_service.dart'
+    as _i965;
 import 'package:json_converter/app/data/services/fasih_backup_reader.dart'
     as _i123;
 import 'package:json_converter/app/data/services/fasih_backup_writer.dart'
     as _i325;
 import 'package:json_converter/app/di/app_module.dart' as _i983;
+import 'package:json_converter/app/modules/auth/cubit/auth_cubit.dart' as _i775;
+import 'package:json_converter/app/modules/server_source/cubit/server_source_cubit.dart'
+    as _i653;
 import 'package:shared_preferences/shared_preferences.dart' as _i460;
 
 extension GetItInjectableX on _i174.GetIt {
@@ -40,10 +51,26 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.singleton<_i123.FasihBackupReader>(() => _i123.FasihBackupReader());
     gh.singleton<_i325.FasihBackupWriter>(() => _i325.FasihBackupWriter());
+    gh.singleton<_i3.FasihAuthRepository>(
+        () => _i3.FasihAuthRepository(gh<_i460.SharedPreferences>()));
     gh.singleton<_i55.SettingsRepository>(
         () => _i55.SettingsRepository(gh<_i460.SharedPreferences>()));
+    gh.singleton<_i965.DeviceIdService>(
+        () => _i965.DeviceIdService(gh<_i460.SharedPreferences>()));
+    gh.singleton<_i443.FasihSurveyApi>(() => _i443.FasihSurveyApi(
+          gh<_i3.FasihAuthRepository>(),
+          gh<_i965.DeviceIdService>(),
+        ));
+    gh.singleton<_i312.FasihServerRepository>(() => _i312.FasihServerRepository(
+          gh<_i443.FasihSurveyApi>(),
+          gh<_i3.FasihAuthRepository>(),
+        ));
     gh.singleton<_i183.FasihConverterSheetApi>(
         () => _i183.FasihConverterSheetApi(gh<_i55.SettingsRepository>()));
+    gh.factory<_i775.AuthCubit>(
+        () => _i775.AuthCubit(gh<_i3.FasihAuthRepository>()));
+    gh.factory<_i653.ServerSourceCubit>(
+        () => _i653.ServerSourceCubit(gh<_i312.FasihServerRepository>()));
     return this;
   }
 }

@@ -27,6 +27,38 @@ class HomeRoute extends PageRouteInfo<void> {
 }
 
 /// generated route for
+/// [LoginView]
+class LoginRoute extends PageRouteInfo<void> {
+  const LoginRoute({List<PageRouteInfo>? children})
+      : super(LoginRoute.name, initialChildren: children);
+
+  static const String name = 'LoginRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const LoginView();
+    },
+  );
+}
+
+/// generated route for
+/// [ServerSourceView]
+class ServerSourceRoute extends PageRouteInfo<void> {
+  const ServerSourceRoute({List<PageRouteInfo>? children})
+      : super(ServerSourceRoute.name, initialChildren: children);
+
+  static const String name = 'ServerSourceRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const ServerSourceView();
+    },
+  );
+}
+
+/// generated route for
 /// [SettingsView]
 class SettingsRoute extends PageRouteInfo<void> {
   const SettingsRoute({List<PageRouteInfo>? children})

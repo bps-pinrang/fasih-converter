@@ -31,8 +31,14 @@ class _LoadArgs {
   final String dirPath;
   final FasihTemplate template;
   final SendPort sendPort;
+  final Map<String, String> wrappedDataKeys;
 
-  const _LoadArgs(this.dirPath, this.template, this.sendPort);
+  const _LoadArgs(
+    this.dirPath,
+    this.template,
+    this.sendPort, {
+    this.wrappedDataKeys = const {},
+  });
 }
 
 class _LoadProgress {
@@ -63,6 +69,7 @@ void _loadRecordsEntry(_LoadArgs args) async {
     final result = await FasihBackupReader().loadRecords(
       Directory(args.dirPath),
       args.template,
+      wrappedDataKeys: args.wrappedDataKeys,
       onProgress: (loaded, total) =>
           args.sendPort.send(_LoadProgress(loaded, total)),
       onRecord: (record, meta) => args.sendPort.send(_LoadRecord(record, meta)),
@@ -543,6 +550,37 @@ class HomeCubit extends Cubit<HomeState> {
     }
   }
 
+  /// Re-runs record loading with server-supplied GCM keys, unlocking
+  /// previously encrypted data.json files in the current backup.
+  Future<void> reloadWithKeyMap(Map<String, String> keyMap) async {
+    final current = state;
+    if (current is! HomeFileLoaded || _extractedDir == null) return;
+    emit(const HomeLoadingFile(subtitle: 'Mendekripsi data dari server...'));
+    try {
+      final result = await _loadRecordsWithProgress(
+        _extractedDir!.path,
+        current.template,
+        wrappedDataKeys: keyMap,
+      );
+      emit(current.copyWith(
+        records: result.records,
+        respondentMeta: result.meta,
+      ));
+    } catch (e, st) {
+      AppErrorLogger.instance.log(
+        e,
+        st,
+        context: {'operasi': 'reloadWithKeyMap'},
+      );
+      emit(current); // restore previous state on failure
+      _sideEffectsController.add(ShowSnackbar(
+        title: 'Gagal Dekripsi',
+        message: e.toString(),
+        isError: true,
+      ));
+    }
+  }
+
   void clearData() {
     final dir = _extractedDir;
     _cleanup();
@@ -561,8 +599,9 @@ class HomeCubit extends Cubit<HomeState> {
   /// updates back to the main thread via [ReceivePort].
   Future<RespondentLoadResult> _loadRecordsWithProgress(
     String dirPath,
-    FasihTemplate template,
-  ) async {
+    FasihTemplate template, {
+    Map<String, String> wrappedDataKeys = const {},
+  }) async {
     _loadPort?.close();
     _loadIsolate?.kill(priority: Isolate.immediate);
 
@@ -572,7 +611,8 @@ class HomeCubit extends Cubit<HomeState> {
 
     _loadIsolate = await Isolate.spawn(
       _loadRecordsEntry,
-      _LoadArgs(dirPath, template, port.sendPort),
+      _LoadArgs(dirPath, template, port.sendPort,
+          wrappedDataKeys: wrappedDataKeys),
     );
 
     final records = <FasihRecord>[];
