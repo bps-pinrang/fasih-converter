@@ -137,6 +137,24 @@ class FasihBackupReader {
     }
   }
 
+  /// Returns the set of survey-period UUIDs found in [backupDir].
+  ///
+  /// In v2.16.3 the layout is `{userUUID}/answers/{periodUUID}/…`, so the
+  /// direct children of every `answers/` dir are period UUIDs.
+  Future<Set<String>> discoverPeriodIds(Directory backupDir) async {
+    final ids = <String>{};
+    await for (final entry in backupDir.list()) {
+      if (entry is! Directory) continue;
+      if (_skipDirs.contains(p.basename(entry.path))) continue;
+      final answersDir = Directory(p.join(entry.path, 'answers'));
+      if (!await answersDir.exists()) continue;
+      await for (final sub in answersDir.list()) {
+        if (sub is Directory) ids.add(p.basename(sub.path));
+      }
+    }
+    return ids;
+  }
+
   /// Loads records for [template] from [backupDir].
   ///
   /// When [onRecord] is provided each parsed record/meta pair is delivered via
