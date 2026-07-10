@@ -37,14 +37,11 @@ class FasihAuthRepository {
 
   void _restoreUser() {
     final json = _prefs.getString(_kUserKey);
-    final realmStr = _prefs.getString(_kRealmKey);
-    if (json == null || realmStr == null) return;
+    if (json == null) return;
     try {
-      final realm = realmStr == 'external'
-          ? BPSRealmType.external
-          : BPSRealmType.internal;
-      _currentUser =
-          BPSUser.fromJson(jsonDecode(json) as Map<String, dynamic>, realm);
+      _currentUser = BPSUser.fromStorageJson(
+        jsonDecode(json) as Map<String, dynamic>,
+      );
     } catch (_) {
       _prefs.remove(_kUserKey);
     }
