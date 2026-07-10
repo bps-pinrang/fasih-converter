@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/repositories/fasih_auth_repository.dart';
 import '../../../di/injection.dart';
 import '../cubit/server_source_cubit.dart';
 import '../cubit/server_source_state.dart';
@@ -46,6 +47,8 @@ class _ServerSourceViewState extends State<ServerSourceView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const _UserChip(),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: _controller,
                     decoration: const InputDecoration(
@@ -102,6 +105,47 @@ class _ServerSourceViewState extends State<ServerSourceView> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _UserChip extends StatelessWidget {
+  const _UserChip();
+
+  @override
+  Widget build(BuildContext context) {
+    final user = getIt<FasihAuthRepository>().currentUser;
+    if (user == null) return const SizedBox.shrink();
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            const Icon(Icons.account_circle, size: 32, color: Colors.blueGrey),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user.fullName,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${user.username} · ${user.realmDisplayName}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
