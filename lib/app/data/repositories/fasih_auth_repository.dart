@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:app_links/app_links.dart';
 import 'package:bps_sso_sdk/bps_sso_sdk.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -33,6 +34,9 @@ class FasihAuthRepository {
         internalClientId: AppEnv.fasihClientIdInternal,
         externalClientId: AppEnv.fasihClientIdEksternal,
         baseUrl: AppEnv.fasihSsoBaseUrl,
+        securityConfig: kDebugMode
+            ? BPSSsoSecurityConfig.development
+            : BPSSsoSecurityConfig.iso27001,
       ),
       linkStream: appLinks.uriLinkStream.map((uri) => uri.toString()),
     );
