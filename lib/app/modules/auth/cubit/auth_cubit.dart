@@ -16,18 +16,20 @@ class AuthCubit extends Cubit<AuthState> {
     emit(const AuthLoading());
     try {
       final user = await _auth.login(context, realm);
-      emit(AuthAuthenticated(user));
+      if (!isClosed) emit(AuthAuthenticated(user));
     } on AuthenticationCancelledException {
-      emit(const AuthInitial());
+      if (!isClosed) emit(const AuthInitial());
     } catch (e) {
-      emit(AuthError(e.toString()));
+      if (!isClosed) emit(AuthError(e.toString()));
     }
   }
 
-  void resetToInitial() => emit(const AuthInitial());
+  void resetToInitial() {
+    if (!isClosed) emit(const AuthInitial());
+  }
 
   Future<void> logout() async {
     await _auth.logout();
-    emit(const AuthInitial());
+    if (!isClosed) emit(const AuthInitial());
   }
 }
