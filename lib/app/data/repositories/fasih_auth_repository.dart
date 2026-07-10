@@ -2,11 +2,13 @@ import 'dart:convert';
 
 import 'package:app_links/app_links.dart';
 import 'package:bps_sso_sdk/bps_sso_sdk.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/debug/alice_inspector.dart';
 import '../core/env/app_env.dart';
 
 const _kUserKey = 'fasih_sso_user';
@@ -28,6 +30,10 @@ class FasihAuthRepository {
 
   void _initSdk() {
     final appLinks = AppLinks();
+    final ssoInterceptors = <Interceptor>[];
+    final aliceAdapter = createAliceDioAdapter();
+    if (aliceAdapter != null) ssoInterceptors.add(aliceAdapter);
+
     BPSSsoClient.instance.initialize(
       config: BPSSsoConfig.create(
         appName: 'fasih',
@@ -37,6 +43,7 @@ class FasihAuthRepository {
         securityConfig: kDebugMode
             ? BPSSsoSecurityConfig.development
             : BPSSsoSecurityConfig.iso27001,
+        interceptors: ssoInterceptors,
       ),
       linkStream: appLinks.uriLinkStream.map((uri) => uri.toString()),
     );

@@ -39,6 +39,8 @@ dependencies:
   dio: ^5.9.2
   uuid: ^4.5.3
   app_links: ^7.2.1
+  alice: ^1.0.0
+  alice_dio: ^1.0.7
 
 dev_dependencies:
   flutter_test:
@@ -65,3 +67,8 @@ flutter_launcher_icons:
   image_path_android: assets/launchers/icon.png
   ios: true
   android: true
+
+dependency_overrides:
+  share_plus: ^13.1.0
+  package_info_plus: ^10.1.0
+  xml: ^7.0.1

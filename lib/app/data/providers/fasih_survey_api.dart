@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 
+import '../core/debug/alice_inspector.dart';
 import '../core/env/app_env.dart';
 import '../models/fasih_assignment.dart';
 import '../repositories/fasih_auth_repository.dart';
@@ -15,6 +16,9 @@ class FasihSurveyApi {
   FasihSurveyApi(this._auth, this._deviceId) {
     _dio = Dio(BaseOptions(baseUrl: AppEnv.fasihBaseUrl))
       ..interceptors.add(_AuthInterceptor(_auth, _deviceId));
+
+    final aliceAdapter = createAliceDioAdapter();
+    if (aliceAdapter != null) _dio.interceptors.add(aliceAdapter);
   }
 
   /// Lists assignments for [surveyPeriodId], including wrappedDataKey per region.
