@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:app_links/app_links.dart';
 import 'package:bps_sso_sdk/bps_sso_sdk.dart';
 import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
@@ -25,6 +26,7 @@ class FasihAuthRepository {
   bool get isLoggedIn => _currentUser != null && !_currentUser!.isTokenExpired;
 
   void _initSdk() {
+    final appLinks = AppLinks();
     BPSSsoClient.instance.initialize(
       config: BPSSsoConfig.create(
         appName: 'fasih',
@@ -32,6 +34,7 @@ class FasihAuthRepository {
         externalClientId: AppEnv.fasihClientIdEksternal,
         baseUrl: AppEnv.fasihSsoBaseUrl,
       ),
+      linkStream: appLinks.uriLinkStream.map((uri) => uri.toString()),
     );
   }
 
