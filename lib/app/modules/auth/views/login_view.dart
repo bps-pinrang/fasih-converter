@@ -36,6 +36,7 @@ class _LoginBody extends StatelessWidget {
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
+          context.read<AuthCubit>().resetToInitial();
         }
       },
       builder: (context, state) {

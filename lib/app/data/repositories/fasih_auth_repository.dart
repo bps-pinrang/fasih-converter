@@ -27,7 +27,7 @@ class FasihAuthRepository {
   void _initSdk() {
     BPSSsoClient.instance.initialize(
       config: BPSSsoConfig.create(
-        appName: 'fasih-converter',
+        appName: 'fasih',
         internalClientId: AppEnv.fasihClientIdInternal,
         externalClientId: AppEnv.fasihClientIdEksternal,
         baseUrl: AppEnv.fasihSsoBaseUrl,
